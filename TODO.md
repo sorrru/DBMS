@@ -81,41 +81,41 @@
 
 目标：实现注册、登录和当前用户查询，暂不创建问卷。
 
-- [ ] 定义 `users` schema 和唯一索引。
-- [ ] 实现 ASCII 用户名校验、小写规范化和 `usernameNormalized` 唯一索引。
-- [ ] 使用异步 `crypto.scrypt` 实现带参数版本、随机盐和恒时比较的密码哈希。
-- [ ] 密码先做 NFKC 规范化；生产只允许固定 scrypt 参数档位，测试通过依赖注入使用低成本档位。
-- [ ] 使用预生成的同档位假哈希处理不存在用户，并安全拒绝参数超限、畸形记录和长度不符。
-- [ ] 启动时校验两个密钥至少 32 字符、互不相同且不是示例占位值，不满足时拒绝启动。
-- [ ] 实现注册接口。
-- [ ] 实现登录接口。
-- [ ] 实现 `GET /api/auth/me`。
-- [ ] 实现 `POST /api/auth/logout`。
-- [ ] 实现认证中间件和统一错误格式。
-- [ ] 增加 `/api` 未知路由的 JSON `404 NOT_FOUND`，统一处理顺序和响应结构。
-- [ ] JWT 只保存 `sub` 和标准时间、签发者、受众声明，固定使用并验证 `HS256`。
-- [ ] 使用 `HttpOnly`、`SameSite=Lax` Cookie，并区分开发/生产的 `Secure`。
-- [ ] 固定 Cookie 名为 `survey_session`；成功响应只返回用户的 `id`、`username` 和 `registeredAt`。
-- [ ] 创建 `docs/API.md`，记录认证接口的请求、响应、鉴权要求和稳定错误码表。
-- [ ] 为注册、登录账号组合和登录 IP 总量配置环境变量驱动的限流，并提供仅测试代码可调用的计数清理方法。
-- [ ] 为内存限流存储实现过期清理、容量上限和满载封闭失败；记录多实例迁移到 Redis 的边界。
-- [ ] 设置 JSON 请求体积上限，对超限请求返回统一错误码。
-- [ ] 注册和登录只接受 `application/json`，退出接口免除 Content-Type；把畸形 JSON 映射为 `VALIDATION_ERROR`，非 JSON 映射为 `UNSUPPORTED_MEDIA_TYPE`。
-- [ ] 将 CORS 限制到配置的来源、允许的方法和请求头，并对所有非安全方法校验 `Origin`。
-- [ ] 固定中间件顺序：Origin → Content-Type → JSON 解析 → 字段校验 → 限流 → 业务 → 404 → 错误处理。
-- [ ] 配置 Vite `/api` 开发代理，前端使用同源相对路径和 Cookie credentials。
-- [ ] 记录 `WEB_ORIGIN` 必须与地址栏完全一致，并为生产可信反向代理提供受限 `trust proxy` 配置。
-- [ ] 实现前端注册和登录页面。
-- [ ] 收到 `AUTH_REQUIRED` 或 `AUTH_INVALID` 时跳转登录，并为后续编辑页面提供不含凭据的草稿恢复机制。
-- [ ] 捕获 MongoDB `11000` 并核对 `keyPattern.usernameNormalized`，实现并发注册同一用户名只成功一次。
-- [ ] 测试前通过 `UserModel.init()` 确认唯一索引已建立。
-- [ ] 编写注册、重复用户名、并发注册、错误密码、NoSQL 注入和令牌测试。
-- [ ] 测试 Cookie 属性、Origin/CSRF、媒体类型、畸形 JSON、请求体上限和限流。
-- [ ] 测试错误密钥、`alg: none`、其他算法及用户已删除的有效令牌。
-- [ ] 测试假哈希调用、scrypt 参数上限、畸形哈希、固定响应字段和 JSON 404。
-- [ ] 检查数据库中不存在明文密码。
-- [ ] 人工检查登录流程和错误提示。
-- [ ] 记录本里程碑 AI 使用和人工修改。
+- [x] 定义 `users` schema 和唯一索引。
+- [x] 实现 ASCII 用户名校验、小写规范化和 `usernameNormalized` 唯一索引。
+- [x] 使用异步 `crypto.scrypt` 实现带参数版本、随机盐和恒时比较的密码哈希。
+- [x] 密码先做 NFKC 规范化；生产只允许固定 scrypt 参数档位，测试通过依赖注入使用低成本档位。
+- [x] 使用预生成的同档位假哈希处理不存在用户，并安全拒绝参数超限、畸形记录和长度不符。
+- [x] 启动时校验两个密钥至少 32 字符、互不相同且不是示例占位值，不满足时拒绝启动。
+- [x] 实现注册接口。
+- [x] 实现登录接口。
+- [x] 实现 `GET /api/auth/me`。
+- [x] 实现 `POST /api/auth/logout`。
+- [x] 实现认证中间件和统一错误格式。
+- [x] 增加 `/api` 未知路由的 JSON `404 NOT_FOUND`，统一处理顺序和响应结构。
+- [x] JWT 只保存 `sub` 和标准时间、签发者、受众声明，固定使用并验证 `HS256`。
+- [x] 使用 `HttpOnly`、`SameSite=Lax` Cookie，并区分开发/生产的 `Secure`。
+- [x] 固定 Cookie 名为 `survey_session`；成功响应只返回用户的 `id`、`username` 和 `registeredAt`。
+- [x] 创建 `docs/API.md`，记录认证接口的请求、响应、鉴权要求和稳定错误码表。
+- [x] 为注册、登录账号组合和登录 IP 总量配置环境变量驱动的限流，并提供仅测试代码可调用的计数清理方法。
+- [x] 为内存限流存储实现过期清理、容量上限和满载封闭失败；记录多实例迁移到 Redis 的边界。
+- [x] 设置 JSON 请求体积上限，对超限请求返回统一错误码。
+- [x] 注册和登录只接受 `application/json`，退出接口免除 Content-Type；把畸形 JSON 映射为 `VALIDATION_ERROR`，非 JSON 映射为 `UNSUPPORTED_MEDIA_TYPE`。
+- [x] 将 CORS 限制到配置的来源、允许的方法和请求头，并对所有非安全方法校验 `Origin`。
+- [x] 固定中间件顺序：Origin → Content-Type → JSON 解析 → 字段校验 → 限流 → 业务 → 404 → 错误处理。
+- [x] 配置 Vite `/api` 开发代理，前端使用同源相对路径和 Cookie credentials。
+- [x] 记录 `WEB_ORIGIN` 必须与地址栏完全一致，并为生产可信反向代理提供受限 `trust proxy` 配置。
+- [x] 实现前端注册和登录页面。
+- [x] 收到 `AUTH_REQUIRED` 或 `AUTH_INVALID` 时跳转登录，并为后续编辑页面提供不含凭据的草稿恢复机制。
+- [x] 捕获 MongoDB `11000` 并核对 `keyPattern.usernameNormalized`，实现并发注册同一用户名只成功一次。
+- [x] 测试前通过 `UserModel.init()` 确认唯一索引已建立。
+- [x] 编写注册、重复用户名、并发注册、错误密码、NoSQL 注入和令牌测试。
+- [x] 测试 Cookie 属性、Origin/CSRF、媒体类型、畸形 JSON、请求体上限和限流。
+- [x] 测试错误密钥、`alg: none`、其他算法及用户已删除的有效令牌。
+- [x] 测试假哈希调用、scrypt 参数上限、畸形哈希、固定响应字段和 JSON 404。
+- [x] 检查数据库中不存在明文密码。
+- [x] 人工检查登录流程和错误提示：注册、刷新恢复、退出、大小写归一登录、错误密码和重复用户名均确认无问题。
+- [x] 记录本里程碑 AI 使用和人工修改；人工界面检查和后续修改结果待追加。
 
 本里程碑交付：完整登录闭环和账号测试证据。
 

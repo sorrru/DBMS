@@ -1,6 +1,6 @@
 # 基于 MongoDB 的版本化问卷系统
 
-本仓库用于数据库系统大作业一。当前仅完成第 1 阶段“项目骨架与开发环境”：Vue 前端、Express 后端、MongoDB 单节点副本集、健康检查、类型检查和基础测试。注册和问卷业务尚未开始。
+本仓库用于数据库系统大作业一。里程碑 1 的项目骨架和里程碑 2 的身份认证均已通过人工验收；注册、登录、Cookie 会话、认证安全控制和相关测试已经完成。问卷业务尚未开始。
 
 ## 当前技术版本
 
@@ -43,11 +43,11 @@ docker-compose.yml     MongoDB 8.0.34 单节点副本集
 cp .env.example .env
 ```
 
-2. 修改 `.env` 中的两个密钥。它们必须不同，且不应提交到 Git：
+2. 生成并填写两个不同的随机密钥。示例占位值不能启动 API，`.env` 不应提交到 Git：
 
-```text
-JWT_SECRET
-ANONYMOUS_ID_SECRET
+```bash
+openssl rand -hex 32
+openssl rand -hex 32
 ```
 
 3. 启动 MongoDB 单节点副本集：
@@ -60,7 +60,7 @@ docker compose ps
 4. 安装依赖并运行检查：
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm test
 npm run build
@@ -127,32 +127,40 @@ MongoDB 已连接时：
 
 ## 配置项
 
-| 变量                  | 示例值                                                                         | 作用                                                             |
-| --------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `API_PORT`            | `3000`                                                                         | Express 监听端口                                                 |
-| `WEB_ORIGIN`          | `http://localhost:5173`                                                        | 允许访问 API 的前端来源                                          |
-| `MONGODB_URI`         | `mongodb://127.0.0.1:27017/survey_stage1?replicaSet=rs0&directConnection=true` | 从宿主机直连 Compose 单节点副本集；`rs0` 必须与 Compose 配置一致 |
-| `JWT_SECRET`          | 自行生成的至少 32 字符密钥                                                     | 后续登录令牌签名密钥                                             |
-| `ANONYMOUS_ID_SECRET` | 与 JWT 不同的至少 32 字符密钥                                                  | 后续生成问卷内匿名标识的独立密钥                                 |
+| 变量                       | 示例值                                                                         | 作用                                                             |
+| -------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `API_PORT`                 | `3000`                                                                         | Express 监听端口                                                 |
+| `WEB_ORIGIN`               | `http://localhost:5173`                                                        | 允许访问 API 的前端来源                                          |
+| `MONGODB_URI`              | `mongodb://127.0.0.1:27017/survey_stage1?replicaSet=rs0&directConnection=true` | 从宿主机直连 Compose 单节点副本集；`rs0` 必须与 Compose 配置一致 |
+| `JWT_SECRET`               | 自行生成的至少 32 字符密钥                                                     | HS256 登录令牌签名；弱值、示例值或缺失会拒绝启动                 |
+| `ANONYMOUS_ID_SECRET`      | 与 JWT 不同的至少 32 字符密钥                                                  | 后续生成问卷内匿名标识；与 JWT 密钥相同会拒绝启动                |
+| `REGISTER_RATE_LIMIT`      | `5`                                                                            | 单 IP 在注册窗口内的请求上限                                     |
+| `REGISTER_RATE_WINDOW_MS`  | `3600000`                                                                      | 注册限流窗口毫秒数                                               |
+| `LOGIN_ACCOUNT_RATE_LIMIT` | `10`                                                                           | 单 IP 与规范化用户名组合的登录上限                               |
+| `LOGIN_IP_RATE_LIMIT`      | `100`                                                                          | 单 IP 登录总上限，防止密码喷洒                                   |
+| `LOGIN_RATE_WINDOW_MS`     | `900000`                                                                       | 两种登录限流的窗口毫秒数                                         |
+| `RATE_LIMIT_MAX_KEYS`      | `10000`                                                                        | 内存限流键容量；满载时对新键封闭失败                             |
+| `TRUST_PROXY`              | 留空                                                                           | 仅按已知生产代理拓扑设置为跳数或可信地址                         |
 
 `.env.example` 已包含上述可用的 `MONGODB_URI`。`directConnection=true` 可避免驱动通过副本集拓扑发现改连到容器内部不可解析的地址；部署为多节点副本集时应移除此参数并提供所有可达节点。
 
-浏览器地址栏必须使用 `http://localhost:5173`，与默认 `WEB_ORIGIN` 完全一致。使用 `http://127.0.0.1:5173` 会被后续认证接口的 Origin 校验拒绝。前端健康检查已经使用相对路径 `/api/health`；里程碑 2 将由 Vite 把所有 `/api` 请求代理到后端。
-
-本阶段只读取前三项；两个密钥先进入配置模板，账号和匿名功能阶段再启用强度检查。
+浏览器地址栏必须使用 `http://localhost:5173`，与默认 `WEB_ORIGIN` 完全一致。使用 `http://127.0.0.1:5173` 会被认证接口的 Origin 校验拒绝。Vite 已把同源相对路径 `/api` 代理到后端。开发代理会让后端看到代理来源 IP；生产环境不能盲目把 `trust proxy` 设为 `true`。
 
 ## 当前测试
 
-- API 健康检查不依赖数据库也能返回服务状态。
-- 前端可以把四种连接状态转换为明确的中文显示。
+- 健康检查覆盖数据库主动探测、断开和超时。
+- 认证测试覆盖真实唯一索引、并发注册、登录、会话、Cookie、Origin、输入类型、请求体、限流和统一错误。
+- 密码测试覆盖 NFKC、scrypt 档位、假哈希及畸形记录；令牌测试固定 HS256 并拒绝过期、错误密钥和其他算法。
+- 前端测试覆盖相对 API、认证错误和不含凭据的单次草稿恢复。
 
 ## 设计文档
 
 - [需求决策记录](docs/REQUIREMENTS_DECISIONS.md)
 - [系统设计](docs/SYSTEM_DESIGN.md)
 - [用户账号与身份认证设计](docs/AUTH_DESIGN.md)
+- [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 
 ## 当前边界
 
-这是项目骨架检查点，不包含注册、登录、问卷、题目、填写或统计功能。人工确认本阶段环境后，才进入账号与身份认证阶段。
+当前边界止于已经验收的账号认证，不包含问卷、题目、填写或统计功能。下一步先讨论里程碑 3 的问卷主体与 v1 草稿，再按相同流程实现和人工检查。
