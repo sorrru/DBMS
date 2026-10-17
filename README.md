@@ -127,20 +127,24 @@ MongoDB 已连接时：
 
 ## 配置项
 
-| 变量                       | 示例值                                                                         | 作用                                                             |
-| -------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `API_PORT`                 | `3000`                                                                         | Express 监听端口                                                 |
-| `WEB_ORIGIN`               | `http://localhost:5173`                                                        | 允许访问 API 的前端来源                                          |
-| `MONGODB_URI`              | `mongodb://127.0.0.1:27017/survey_stage1?replicaSet=rs0&directConnection=true` | 从宿主机直连 Compose 单节点副本集；`rs0` 必须与 Compose 配置一致 |
-| `JWT_SECRET`               | 自行生成的至少 32 字符密钥                                                     | HS256 登录令牌签名；弱值、示例值或缺失会拒绝启动                 |
-| `ANONYMOUS_ID_SECRET`      | 与 JWT 不同的至少 32 字符密钥                                                  | 后续生成问卷内匿名标识；与 JWT 密钥相同会拒绝启动                |
-| `REGISTER_RATE_LIMIT`      | `5`                                                                            | 单 IP 在注册窗口内的请求上限                                     |
-| `REGISTER_RATE_WINDOW_MS`  | `3600000`                                                                      | 注册限流窗口毫秒数                                               |
-| `LOGIN_ACCOUNT_RATE_LIMIT` | `10`                                                                           | 单 IP 与规范化用户名组合的登录上限                               |
-| `LOGIN_IP_RATE_LIMIT`      | `100`                                                                          | 单 IP 登录总上限，防止密码喷洒                                   |
-| `LOGIN_RATE_WINDOW_MS`     | `900000`                                                                       | 两种登录限流的窗口毫秒数                                         |
-| `RATE_LIMIT_MAX_KEYS`      | `10000`                                                                        | 内存限流键容量；满载时对新键封闭失败                             |
-| `TRUST_PROXY`              | 留空                                                                           | 仅按已知生产代理拓扑设置为跳数或可信地址                         |
+| 变量                          | 示例值                                                                         | 作用                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `API_PORT`                    | `3000`                                                                         | Express 监听端口                                                 |
+| `WEB_ORIGIN`                  | `http://localhost:5173`                                                        | 允许访问 API 的前端来源                                          |
+| `MONGODB_URI`                 | `mongodb://127.0.0.1:27017/survey_stage1?replicaSet=rs0&directConnection=true` | 从宿主机直连 Compose 单节点副本集；`rs0` 必须与 Compose 配置一致 |
+| `JWT_SECRET`                  | 自行生成的至少 32 字符密钥                                                     | HS256 登录令牌签名；弱值、示例值或缺失会拒绝启动                 |
+| `ANONYMOUS_ID_SECRET`         | 与 JWT 不同的至少 32 字符密钥                                                  | 后续生成问卷内匿名标识；与 JWT 密钥相同会拒绝启动                |
+| `REGISTER_RATE_LIMIT`         | `5`                                                                            | 单 IP 在注册窗口内的请求上限                                     |
+| `REGISTER_RATE_WINDOW_MS`     | `3600000`                                                                      | 注册限流窗口毫秒数                                               |
+| `LOGIN_ACCOUNT_RATE_LIMIT`    | `10`                                                                           | 单 IP 与规范化用户名组合的登录上限                               |
+| `LOGIN_IP_RATE_LIMIT`         | `100`                                                                          | 单 IP 登录总上限，防止密码喷洒                                   |
+| `LOGIN_RATE_WINDOW_MS`        | `900000`                                                                       | 两种登录限流的窗口毫秒数                                         |
+| `RATE_LIMIT_MAX_KEYS`         | `10000`                                                                        | 内存限流键容量；满载时对新键封闭失败                             |
+| `TRUST_PROXY`                 | 留空                                                                           | 仅按已知生产代理拓扑设置为跳数或可信地址                         |
+| `SURVEY_MAX_PER_USER`         | `100`                                                                          | 每个用户可创建的问卷数量上限                                     |
+| `SURVEY_WRITE_RATE_LIMIT`     | `60`                                                                           | 单用户在问卷写入窗口内的请求上限                                 |
+| `SURVEY_WRITE_RATE_WINDOW_MS` | `900000`                                                                       | 问卷写接口限流窗口毫秒数                                         |
+| `SEED_USER_PASSWORD`          | 留空                                                                           | 本地种子账号密码；运行脚本前填写且必须满足正式密码规则           |
 
 `.env.example` 已包含上述可用的 `MONGODB_URI`。`directConnection=true` 可避免驱动通过副本集拓扑发现改连到容器内部不可解析的地址；部署为多节点副本集时应移除此参数并提供所有可达节点。
 
@@ -158,6 +162,7 @@ MongoDB 已连接时：
 - [需求决策记录](docs/REQUIREMENTS_DECISIONS.md)
 - [系统设计](docs/SYSTEM_DESIGN.md)
 - [用户账号与身份认证设计](docs/AUTH_DESIGN.md)
+- [问卷主体与 v1 草稿设计](docs/SURVEY_DRAFT_DESIGN.md)
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 

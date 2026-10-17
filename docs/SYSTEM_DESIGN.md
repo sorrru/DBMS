@@ -98,14 +98,14 @@ MongoDB
   "publicId": "随机公开标识",
   "internalName": "课程反馈问卷",
   "manualStatus": "open",
-  "currentVersionId": "ObjectId(survey_versions)",
+  "currentVersionId": null,
   "draftVersionId": "ObjectId(survey_versions)",
   "createdAt": "Date",
   "updatedAt": "Date"
 }
 ```
 
-`publicId` 用于稳定公开链接 `/survey/{publicId}`。发布新版本不改变链接。
+`publicId` 使用至少 128 位随机值和 URL 安全编码，用于稳定公开链接 `/survey/{publicId}`。发布新版本不改变链接。`currentVersionId` 和 `draftVersionId` 均允许为 `null`，但创建问卷和 v1 草稿的事务完成后，`draftVersionId` 必须指向 v1。
 
 ### survey_versions
 
@@ -117,6 +117,7 @@ MongoDB
   "surveyId": "ObjectId(surveys)",
   "versionNumber": 2,
   "status": "draft",
+  "revision": 1,
   "title": "课程反馈",
   "description": "请根据真实情况填写",
   "identityMode": "anonymous",
@@ -126,11 +127,12 @@ MongoDB
   "questions": [],
   "schemaVersion": 1,
   "createdAt": "Date",
+  "updatedAt": "Date",
   "publishedAt": null
 }
 ```
 
-版本只使用 `draft` 和 `published`。发布后不可修改；历史发布版本由回答继续引用，当前版本由 `surveys.currentVersionId` 指定。
+版本只使用 `draft` 和 `published`。`revision` 是草稿的乐观并发版本号，每次成功保存加一；发布后不可修改。历史发布版本由回答继续引用，当前版本由 `surveys.currentVersionId` 指定。保存草稿设置时，版本修改和 `surveys.updatedAt` 更新必须放在同一事务中，使“我的问卷”排序反映最近编辑时间。
 
 ### fill_sessions
 
@@ -305,6 +307,8 @@ v1 保留历史回答与统计
 
 发布新版本应使用 MongoDB 事务，原子完成草稿校验、版本发布、当前版本指针更新和草稿指针清理。本地 Docker 环境配置单节点副本集以支持事务。
 
+创建问卷同样使用 `withTransaction`。事务开始前生成 survey 与 version 两个 ObjectId，使两个文档可以在首次插入时直接互相引用，不经过“先插入再回填”。`publicId` 由至少 128 位随机值生成，并由唯一索引兜底；发生重复键时整个事务失败，不在事务内部局部重试。
+
 ## API 设计
 
 ### 认证
@@ -318,27 +322,28 @@ v1 保留历史回答与统计
 
 ### 问卷管理
 
-| 方法 | 路径                            | 作用               |
-| ---- | ------------------------------- | ------------------ |
-| POST | `/api/surveys`                  | 创建问卷和 v1 草稿 |
-| GET  | `/api/surveys`                  | 我的问卷列表       |
-| GET  | `/api/surveys/:surveyId`        | 问卷及版本摘要     |
-| POST | `/api/surveys/:surveyId/close`  | 手工关闭           |
-| POST | `/api/surveys/:surveyId/reopen` | 手工重新开放       |
+| 方法  | 路径                            | 作用               |
+| ----- | ------------------------------- | ------------------ |
+| POST  | `/api/surveys`                  | 创建问卷和 v1 草稿 |
+| GET   | `/api/surveys`                  | 我的问卷列表       |
+| GET   | `/api/surveys/:surveyId`        | 问卷及版本摘要     |
+| PATCH | `/api/surveys/:surveyId`        | 修改内部管理名称   |
+| POST  | `/api/surveys/:surveyId/close`  | 手工关闭           |
+| POST  | `/api/surveys/:surveyId/reopen` | 手工重新开放       |
 
 ### 版本管理
 
-| 方法   | 路径                                                         | 作用             |
-| ------ | ------------------------------------------------------------ | ---------------- |
-| GET    | `/api/surveys/:id/versions`                                  | 版本列表         |
-| POST   | `/api/surveys/:id/versions/draft`                            | 创建下一版本草稿 |
-| GET    | `/api/surveys/:id/versions/:versionId`                       | 查看版本         |
-| PATCH  | `/api/surveys/:id/versions/:versionId`                       | 修改草稿设置     |
-| POST   | `/api/surveys/:id/versions/:versionId/questions`             | 添加题目         |
-| PATCH  | `/api/surveys/:id/versions/:versionId/questions/:questionId` | 修改题目         |
-| DELETE | `/api/surveys/:id/versions/:versionId/questions/:questionId` | 删除草稿题目     |
-| POST   | `/api/surveys/:id/versions/:versionId/validate`              | 发布前检查       |
-| POST   | `/api/surveys/:id/versions/:versionId/publish`               | 发布版本         |
+| 方法   | 路径                                                               | 作用             |
+| ------ | ------------------------------------------------------------------ | ---------------- |
+| GET    | `/api/surveys/:surveyId/versions`                                  | 版本列表         |
+| POST   | `/api/surveys/:surveyId/versions/draft`                            | 创建下一版本草稿 |
+| GET    | `/api/surveys/:surveyId/versions/:versionId`                       | 查看版本         |
+| PATCH  | `/api/surveys/:surveyId/versions/:versionId`                       | 修改草稿设置     |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/questions`             | 添加题目         |
+| PATCH  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 修改题目         |
+| DELETE | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 删除草稿题目     |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/validate`              | 发布前检查       |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/publish`               | 发布版本         |
 
 ### 填写
 
@@ -350,10 +355,21 @@ v1 保留历史回答与统计
 
 ### 统计
 
-| 方法 | 路径                                              | 作用         |
-| ---- | ------------------------------------------------- | ------------ |
-| GET  | `/api/surveys/:id/versions/:versionId/statistics` | 版本统计     |
-| GET  | `/api/surveys/:id/versions/:versionId/responses`  | 分页查看回答 |
+| 方法 | 路径                                                    | 作用         |
+| ---- | ------------------------------------------------------- | ------------ |
+| GET  | `/api/surveys/:surveyId/versions/:versionId/statistics` | 版本统计     |
+| GET  | `/api/surveys/:surveyId/versions/:versionId/responses`  | 分页查看回答 |
+
+### 问卷草稿错误码
+
+| HTTP | 错误码                 | 含义                                            |
+| ---: | ---------------------- | ----------------------------------------------- |
+|  404 | `SURVEY_NOT_FOUND`     | 问卷/版本不存在、不属于当前用户或组合错误       |
+|  409 | `VERSION_NOT_EDITABLE` | 目标版本已发布，不能通过草稿接口修改            |
+|  409 | `DRAFT_CONFLICT`       | 客户端 revision 过期；details 返回当前 revision |
+|  409 | `SURVEY_LIMIT_REACHED` | 当前用户达到可配置的问卷数量上限                |
+
+所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`。
 
 ## 前端范围
 
@@ -365,17 +381,17 @@ v1 保留历史回答与统计
 
 ## 索引
 
-| 集合            | 索引                                  |
-| --------------- | ------------------------------------- |
-| users           | `usernameNormalized` 唯一             |
-| surveys         | `publicId` 唯一                       |
-| surveys         | `ownerId + updatedAt`                 |
-| survey_versions | `surveyId + versionNumber` 唯一       |
-| survey_versions | 每份问卷最多一个草稿的条件唯一索引    |
-| fill_sessions   | `sessionTokenHash` 唯一               |
-| fill_sessions   | `expiresAt` TTL                       |
-| responses       | `surveyVersionId + submittedAt`       |
-| responses       | `surveyVersionId + dedupKey` 条件唯一 |
+| 集合            | 索引                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| users           | `usernameNormalized` 唯一                                           |
+| surveys         | `publicId` 唯一                                                     |
+| surveys         | `{ ownerId: 1, updatedAt: -1, _id: -1 }`                            |
+| survey_versions | `surveyId + versionNumber` 唯一                                     |
+| survey_versions | `{ surveyId: 1, status: 1 }` 条件唯一索引，仅匹配 `status: "draft"` |
+| fill_sessions   | `sessionTokenHash` 唯一                                             |
+| fill_sessions   | `expiresAt` TTL                                                     |
+| responses       | `surveyVersionId + submittedAt`                                     |
+| responses       | `surveyVersionId + dedupKey` 条件唯一                               |
 
 ## 测试设计
 
