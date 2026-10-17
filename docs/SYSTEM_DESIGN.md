@@ -73,16 +73,19 @@ MongoDB
 {
   "_id": "ObjectId",
   "username": "alice",
-  "passwordHash": "bcrypt hash",
+  "usernameNormalized": "alice",
+  "passwordHash": "scrypt$参数$盐$派生密钥",
   "registeredAt": "Date"
 }
 ```
 
 约束：
 
-- `username` 唯一。
+- `usernameNormalized` 唯一，用户名按小写规范化。
 - 只保存密码哈希。
 - 匿名回答不直接引用用户 ID。
+
+密码使用 Node.js 内置异步 `crypto.scrypt`，认证细节、参数、Cookie、CSRF、限流和错误码见 `AUTH_DESIGN.md`。
 
 ### surveys
 
@@ -311,6 +314,7 @@ v1 保留历史回答与统计
 | POST | `/api/auth/register` | 注册     |
 | POST | `/api/auth/login`    | 登录     |
 | GET  | `/api/auth/me`       | 当前用户 |
+| POST | `/api/auth/logout`   | 退出登录 |
 
 ### 问卷管理
 
@@ -363,7 +367,7 @@ v1 保留历史回答与统计
 
 | 集合            | 索引                                  |
 | --------------- | ------------------------------------- |
-| users           | `username` 唯一                       |
+| users           | `usernameNormalized` 唯一             |
 | surveys         | `publicId` 唯一                       |
 | surveys         | `ownerId + updatedAt`                 |
 | survey_versions | `surveyId + versionNumber` 唯一       |

@@ -137,6 +137,8 @@ MongoDB 已连接时：
 
 `.env.example` 已包含上述可用的 `MONGODB_URI`。`directConnection=true` 可避免驱动通过副本集拓扑发现改连到容器内部不可解析的地址；部署为多节点副本集时应移除此参数并提供所有可达节点。
 
+浏览器地址栏必须使用 `http://localhost:5173`，与默认 `WEB_ORIGIN` 完全一致。使用 `http://127.0.0.1:5173` 会被后续认证接口的 Origin 校验拒绝。前端健康检查已经使用相对路径 `/api/health`；里程碑 2 将由 Vite 把所有 `/api` 请求代理到后端。
+
 本阶段只读取前三项；两个密钥先进入配置模板，账号和匿名功能阶段再启用强度检查。
 
 ## 当前测试
@@ -148,6 +150,7 @@ MongoDB 已连接时：
 
 - [需求决策记录](docs/REQUIREMENTS_DECISIONS.md)
 - [系统设计](docs/SYSTEM_DESIGN.md)
+- [用户账号与身份认证设计](docs/AUTH_DESIGN.md)
 - [分阶段 TODO](TODO.md)
 
 ## 当前边界
