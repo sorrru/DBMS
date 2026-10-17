@@ -1,0 +1,170 @@
+:root {
+  color: #172033;
+  background: #eef3f8;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button {
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.7rem 1rem;
+  color: white;
+  background: #245b8f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.page-shell {
+  width: min(900px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+.intro {
+  max-width: 680px;
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  color: #245b8f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0.8rem;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  line-height: 1.05;
+}
+
+.intro > p:last-child {
+  color: #526174;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.status-panel {
+  border: 1px solid #d6e0ea;
+  border-radius: 1rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  background: white;
+  box-shadow: 0 1rem 2.5rem rgb(39 69 99 / 8%);
+}
+
+.section-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-heading h2 {
+  margin-bottom: 0;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid #e1e8ef;
+  border-radius: 0.8rem;
+  padding: 1.1rem;
+  background: #f8fafc;
+}
+
+.status-card h3,
+.status-card p {
+  margin-bottom: 0;
+}
+
+.status-card p,
+.checked-at {
+  color: #627083;
+}
+
+.status-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8794a5;
+}
+
+.status-dot[data-state="connected"] {
+  background: #17915d;
+  box-shadow: 0 0 0 0.25rem rgb(23 145 93 / 14%);
+}
+
+.status-dot[data-state="connecting"] {
+  background: #d79017;
+}
+
+.status-dot[data-state="disconnected"] {
+  background: #c94848;
+}
+
+.checked-at,
+.error {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+}
+
+.error {
+  color: #a52f2f;
+}
+
+@media (max-width: 620px) {
+  .page-shell {
+    padding: 2rem 0;
+  }
+
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,28 @@
+services:
+  mongodb:
+    image: mongo:8.0.34
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - survey_mongo_data:/data/db
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mongo-init:
+    image: mongo:8.0.34
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./docker/init-replica-set.sh:/scripts/init-replica-set.sh:ro
+    entrypoint: ["bash", "/scripts/init-replica-set.sh"]
+
+volumes:
+  survey_mongo_data:
