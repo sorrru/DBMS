@@ -196,7 +196,6 @@ survey_version
 ```json
 {
   "questionId": "q_age",
-  "order": 3,
   "type": "number",
   "title": "年龄",
   "required": true,
@@ -206,7 +205,11 @@ survey_version
 }
 ```
 
-同一道逻辑题从旧版本复制到新版本时保留 `questionId`。调整顺序不会修改 ID；新题生成新 ID；删除只影响新版本。选项同样使用稳定 `optionId`。
+`questions` 数组位置是唯一顺序，不另存 `order`。同一道逻辑题从旧版本复制到新版本时保留 `questionId`。调整顺序不会修改 ID，但会改变没有跳转规则时的默认下一题；新题生成新 ID；删除只影响新版本。选项同样使用稳定 `optionId`，固定结构为 `{ optionId, text }`。
+
+每个版本最多 100 道题。题型创建后不可直接修改；题目修改接口完整替换标题、必答设置、校验和选项，不局部合并。`validation` 请求字段必填但可为空对象，服务端补齐所有缺省字段后再存储，保证发布版本不依赖未来代码中的默认值。里程碑 4 不接受跳转规则，`jumpRules` 固定为 `[]`。完整字段、默认值、答案形态、并发更新与错误顺序见 `QUESTION_DESIGN.md`。
+
+题目标题与选项先做 NFC 规范化，再 trim、按 Unicode 码点计数和比较；拒绝 `Cc` 类及双向控制符，但保留 ZWJ。前端对整个版本只维护一份 revision，设置保存与题目写入共同串行化。
 
 ### 单选题
 
@@ -342,6 +345,7 @@ v1 保留历史回答与统计
 | POST   | `/api/surveys/:surveyId/versions/:versionId/questions`             | 添加题目         |
 | PATCH  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 修改题目         |
 | DELETE | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 删除草稿题目     |
+| PUT    | `/api/surveys/:surveyId/versions/:versionId/question-order`        | 完整重排题目     |
 | POST   | `/api/surveys/:surveyId/versions/:versionId/validate`              | 发布前检查       |
 | POST   | `/api/surveys/:surveyId/versions/:versionId/publish`               | 发布版本         |
 
@@ -362,14 +366,16 @@ v1 保留历史回答与统计
 
 ### 问卷草稿错误码
 
-| HTTP | 错误码                 | 含义                                            |
-| ---: | ---------------------- | ----------------------------------------------- |
-|  404 | `SURVEY_NOT_FOUND`     | 问卷/版本不存在、不属于当前用户或组合错误       |
-|  409 | `VERSION_NOT_EDITABLE` | 目标版本已发布，不能通过草稿接口修改            |
-|  409 | `DRAFT_CONFLICT`       | 客户端 revision 过期；details 返回当前 revision |
-|  409 | `SURVEY_LIMIT_REACHED` | 当前用户达到可配置的问卷数量上限                |
+| HTTP | 错误码                   | 含义                                            |
+| ---: | ------------------------ | ----------------------------------------------- |
+|  404 | `SURVEY_NOT_FOUND`       | 问卷/版本不存在、不属于当前用户或组合错误       |
+|  404 | `QUESTION_NOT_FOUND`     | 格式合法的题目 ID 在目标版本中不存在            |
+|  409 | `VERSION_NOT_EDITABLE`   | 目标版本已发布，不能通过草稿接口修改            |
+|  409 | `DRAFT_CONFLICT`         | 客户端 revision 过期；details 返回当前 revision |
+|  409 | `SURVEY_LIMIT_REACHED`   | 当前用户达到可配置的问卷数量上限                |
+|  409 | `QUESTION_LIMIT_REACHED` | 目标版本已经达到 100 道题上限                   |
 
-所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`。
+所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`。
 
 ## 前端范围
 
@@ -397,8 +403,9 @@ v1 保留历史回答与统计
 
 ### 单元测试
 
-- 所有题型的边界校验。
-- 手机号数字字符校验。
+- 分开覆盖题目定义校验和纯函数 `validateAnswer(question, value)` 的所有边界。
+- 手机号仅接受 ASCII 数字字符，拒绝全角数字和阿拉伯-印度数字。
+- 文本 Unicode 码点、选择数量、选项归属、有限安全数值、`Infinity` 和 `-0` 规范化。
 - 第一条跳转规则优先。
 - 跳转循环检测。
 - 路径外必答题不校验。
@@ -410,6 +417,9 @@ v1 保留历史回答与统计
 
 - 注册登录与用户隔离。
 - 创建和修改草稿。
+- 题目新增、完整替换、删除和完整重排，以及稳定题目和选项 ID。
+- 题型、ID 和跳转规则不可由修改请求覆盖；借用其他题的选项 ID 被拒绝。
+- 同 revision 并发写只有一个成功，99 题并发新增不会超过 100 题。
 - 已发布版本不可修改。
 - 新版本不覆盖旧版本。
 - 旧填写会话在 30 分钟内提交到旧版本。
