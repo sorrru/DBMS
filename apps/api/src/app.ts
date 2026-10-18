@@ -14,6 +14,7 @@ import { ApiError } from "./errors/api-error.js";
 import { PasswordService } from "./security/password.js";
 import { FixedWindowStore } from "./security/rate-limit.js";
 import { TokenService } from "./security/token.js";
+import { createSurveyRouter } from "./surveys/router.js";
 
 export interface HealthResponse {
   status: "ok" | "degraded";
@@ -41,11 +42,10 @@ function originGuard(webOrigin: string): RequestHandler {
 }
 
 const contentTypeGuard: RequestHandler = (request, _response, next) => {
-  if (
-    request.method === "POST" &&
-    ["/api/auth/register", "/api/auth/login"].includes(request.path) &&
-    !request.is("application/json")
-  ) {
+  const hasBody =
+    ["POST", "PUT", "PATCH", "DELETE"].includes(request.method) &&
+    request.path !== "/api/auth/logout";
+  if (hasBody && !request.is("application/json")) {
     next(
       new ApiError(
         415,
@@ -98,6 +98,7 @@ export function createApp(
   });
 
   app.use("/api/auth", createAuthRouter(authDependencies));
+  app.use("/api/surveys", createSurveyRouter(authDependencies));
   app.use("/api", (_request, _response, next) =>
     next(new ApiError(404, "NOT_FOUND", "接口不存在")),
   );

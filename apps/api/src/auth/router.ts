@@ -1,18 +1,12 @@
 import { Router, type Request } from "express";
-import { isValidObjectId } from "mongoose";
 import type { AppEnv } from "../config/env.js";
-import { ApiError } from "../errors/api-error.js";
-import {
-  clearSessionCookie,
-  readSessionCookie,
-  setSessionCookie,
-} from "../http/cookies.js";
-import { UserModel } from "../models/user.js";
+import { clearSessionCookie, setSessionCookie } from "../http/cookies.js";
 import type { PasswordService } from "../security/password.js";
 import { FixedWindowStore } from "../security/rate-limit.js";
 import type { TokenService } from "../security/token.js";
 import { AuthService, publicUser } from "./service.js";
 import { validateCredentials } from "./validation.js";
+import { requireCurrentUser } from "./current-user.js";
 
 export interface AuthDependencies {
   env: Readonly<AppEnv>;
@@ -73,13 +67,7 @@ export function createAuthRouter(deps: AuthDependencies): Router {
   });
 
   router.get("/me", async (request, response) => {
-    const token = readSessionCookie(request);
-    if (!token) throw new ApiError(401, "AUTH_REQUIRED", "请先登录");
-    const userId = deps.tokens.verify(token);
-    if (!userId || !isValidObjectId(userId))
-      throw new ApiError(401, "AUTH_INVALID", "登录状态无效或已过期");
-    const user = await UserModel.findById(userId).exec();
-    if (!user) throw new ApiError(401, "AUTH_INVALID", "登录状态无效或已过期");
+    const user = await requireCurrentUser(request, deps.tokens);
     response.json({ user: publicUser(user) });
   });
 

@@ -16,6 +16,7 @@ import { UserModel } from "../src/models/user.js";
 import { PasswordService } from "../src/security/password.js";
 import { FixedWindowStore } from "../src/security/rate-limit.js";
 import { TokenService } from "../src/security/token.js";
+import { assertSafeTestDatabase } from "./database-safety.js";
 
 const origin = "http://localhost:5173";
 const testScryptProfile = {
@@ -49,6 +50,7 @@ const register = (username = "Alice", password = "Password123") =>
     .send({ username, password });
 
 beforeAll(async () => {
+  assertSafeTestDatabase(testEnv.mongoUri);
   const dummyHash = await passwords.hash("dummy-password-123");
   appPasswords = new PasswordService(testScryptProfile, dummyHash);
   app = createApp({

@@ -57,7 +57,13 @@ export async function connectDatabase(): Promise<void> {
   try {
     await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 3_000 });
     const { UserModel } = await import("../models/user.js");
-    await UserModel.init();
+    const { SurveyModel } = await import("../models/survey.js");
+    const { SurveyVersionModel } = await import("../models/survey-version.js");
+    await Promise.all([
+      UserModel.init(),
+      SurveyModel.init(),
+      SurveyVersionModel.init(),
+    ]);
     console.info("MongoDB 已连接");
   } catch (error) {
     console.error("MongoDB 连接失败，将在 5 秒后重试", error);

@@ -7,7 +7,11 @@ interface UserResponse {
   user: PublicUser;
 }
 interface ErrorResponse {
-  error?: { code?: string; message?: string };
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Record<string, unknown>;
+  };
 }
 
 export class ApiClientError extends Error {
@@ -15,12 +19,16 @@ export class ApiClientError extends Error {
     public readonly code: string,
     message: string,
     public readonly status: number,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
 }
 
-async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const response = await fetch(path, { credentials: "include", ...options });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ErrorResponse;
@@ -28,6 +36,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
       body.error?.code ?? "INTERNAL_ERROR",
       body.error?.message ?? "请求失败",
       response.status,
+      body.error?.details,
     );
   }
   return response.status === 204
@@ -42,11 +51,18 @@ const jsonOptions = (body: unknown): RequestInit => ({
 });
 
 export const register = (username: string, password: string) =>
-  api<UserResponse>("/api/auth/register", jsonOptions({ username, password }));
+  apiRequest<UserResponse>(
+    "/api/auth/register",
+    jsonOptions({ username, password }),
+  );
 export const login = (username: string, password: string) =>
-  api<UserResponse>("/api/auth/login", jsonOptions({ username, password }));
-export const currentUser = () => api<UserResponse>("/api/auth/me");
-export const logout = () => api<void>("/api/auth/logout", { method: "POST" });
+  apiRequest<UserResponse>(
+    "/api/auth/login",
+    jsonOptions({ username, password }),
+  );
+export const currentUser = () => apiRequest<UserResponse>("/api/auth/me");
+export const logout = () =>
+  apiRequest<void>("/api/auth/logout", { method: "POST" });
 
 const forbiddenDraftKey = /password|token|jwt|anonymous.?id|session.?token/i;
 function containsCredential(value: unknown): boolean {

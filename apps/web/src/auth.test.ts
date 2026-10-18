@@ -37,12 +37,17 @@ describe("auth client", () => {
         ok: false,
         status: 401,
         json: async () => ({
-          error: { code: "AUTH_INVALID", message: "expired" },
+          error: {
+            code: "AUTH_INVALID",
+            message: "expired",
+            details: { field: "deadline" },
+          },
         }),
       }),
     );
     await expect(currentUser()).rejects.toMatchObject({
       code: "AUTH_INVALID",
+      details: { field: "deadline" },
     } satisfies Partial<ApiClientError>);
   });
 

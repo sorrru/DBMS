@@ -57,6 +57,9 @@ export interface AppEnv {
   loginIpLimit: number;
   loginWindowMs: number;
   rateLimitMaxKeys: number;
+  surveyMaxPerUser: number;
+  surveyWriteRateLimit: number;
+  surveyWriteRateWindowMs: number;
 }
 
 export function loadEnv(
@@ -92,6 +95,13 @@ export function loadEnv(
     loginIpLimit: integer(source, "LOGIN_IP_RATE_LIMIT", 100),
     loginWindowMs: integer(source, "LOGIN_RATE_WINDOW_MS", 900_000),
     rateLimitMaxKeys: integer(source, "RATE_LIMIT_MAX_KEYS", 10_000),
+    surveyMaxPerUser: integer(source, "SURVEY_MAX_PER_USER", 100),
+    surveyWriteRateLimit: integer(source, "SURVEY_WRITE_RATE_LIMIT", 60),
+    surveyWriteRateWindowMs: integer(
+      source,
+      "SURVEY_WRITE_RATE_WINDOW_MS",
+      900_000,
+    ),
   });
 }
 
