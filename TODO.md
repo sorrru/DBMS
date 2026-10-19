@@ -264,21 +264,40 @@
 
 目标：完成不可变发布版本和下一版本草稿流程。
 
-- [ ] 使用 MongoDB 事务发布 v1。
-- [ ] 更新 `currentVersionId` 并清除 `draftVersionId`。
-- [ ] 阻止修改已发布版本。
-- [ ] 从当前版本复制下一版本草稿。
-- [ ] 保留稳定题目和选项 ID。
-- [ ] 发布 v2 并保留 v1。
-- [ ] 实现版本历史页面。
-- [ ] 实现手工关闭和重新开放。
-- [ ] 实现 `published`、`closed`、`expired` 有效状态。
-- [ ] 验证发布新版本不会自动重新开放问卷。
-- [ ] 编写事务、版本不可变和历史保留测试。
-- [ ] 在发布事务中间注入可控失败，验证版本状态、当前版本指针和草稿指针全部回滚，数据库不存在半发布状态。
-- [ ] 在 `docs/API.md` 追加发布、创建下一版本、关闭与重新开放接口和错误码。
-- [ ] 人工比较 v1 与 v2 内容。
-- [ ] 记录本里程碑 AI 使用和人工修改。
+- [x] 完成 `docs/VERSION_LIFECYCLE_DESIGN.md` 候选设计和两轮人工审阅，补充条件更新、两层并发保护、共享状态函数、历史聚合、放弃草稿、游标迁移和测试矩阵；等待最终人工确认后实现。
+- [ ] 在共享包实现 `computeSurveyStatus(survey, currentVersion, now)`，状态固定为 `draft | published | closed | expired`，关闭优先于到期；列表和后续公开/填写服务共用。
+- [ ] 问卷列表批量版本查询同时处理 `currentVersionId` 和 `draftVersionId`；版本摘要增加 deadline，使用服务层可注入时钟计算有效状态。
+- [ ] 实现严格发布请求：`revision` 与 `acknowledgeWarnings` 均必填，未知字段和非布尔确认返回 `VALIDATION_ERROR`。
+- [ ] 发布事务内重新读取草稿并复用 `validateForPublish`；阻止项返回 `PUBLISH_BLOCKED`，未确认警告返回 `PUBLISH_WARNINGS_UNCONFIRMED`，details 携带完整检查结果。
+- [ ] 发布版本条件更新固定为 `{ _id, surveyId, status: draft, revision }`，问卷条件更新固定包含 `ownerId` 与 `draftVersionId`；条件失败后重新诊断稳定错误。
+- [ ] `withTransaction` 每次执行回调时重新读取 now；发布成功原子设置 `status=published`，让 `publishedAt`、版本 `updatedAt` 与问卷 `updatedAt` 共用该值，更新 `currentVersionId` 并清空 `draftVersionId`；不增加 revision，不改变 `manualStatus`。
+- [ ] 固定发布错误顺序：请求 400 → 问卷/版本 404 → `VERSION_NOT_EDITABLE` → `DRAFT_CONFLICT` → `PUBLISH_BLOCKED` → `PUBLISH_WARNINGS_UNCONFIRMED`。
+- [ ] 在版本状态更新后、问卷指针更新后分别注入测试失败，验证版本、时间、两个指针和问卷更新时间全部回滚；失败依赖不暴露为路由或配置。
+- [ ] 实现 `POST /api/surveys/:surveyId/versions`，请求必须带 `sourceVersionId`；判定顺序固定为未发布 `SURVEY_NOT_PUBLISHED` → 已有草稿 `DRAFT_ALREADY_EXISTS` → 来源不当前 `SOURCE_VERSION_NOT_CURRENT`。
+- [ ] 创建草稿时使用字段白名单与 `structuredClone` 深复制完整定义，保留题目、选项、规则 ID；新版本号为当前加一、revision 为 1，不复制数据库 ID、发布时间和时间戳。
+- [ ] 创建草稿事务使用 `draftVersionId:null + currentVersionId:sourceVersionId` 条件更新并刷新 `surveys.updatedAt`；部分唯一索引兜底，11000 必须核对 keyPattern，其他重复键不误报。
+- [ ] 在草稿版本插入后、问卷指针更新前注入失败，验证没有孤立版本；两个并发创建请求恰好一个 201、一个 `DRAFT_ALREADY_EXISTS`。
+- [ ] 实现 `DELETE /api/surveys/:surveyId/versions/:versionId` 放弃下一版本草稿：要求 revision、当前草稿指针和已有发布版本，事务删除版本并清空指针；判定顺序为请求 400 → 归属/组合 404 → `SURVEY_NOT_PUBLISHED` → `VERSION_NOT_EDITABLE` → `DRAFT_CONFLICT`，初始 v1 提示“初始草稿不能放弃”。
+- [ ] 放弃 v2 后允许重新创建 v2，不产生版本号空洞；测试 stale revision、回滚和并发边界。
+- [ ] 实现版本历史聚合：按 versionNumber 倒序，`$project + $size` 计算 questionCount，不读取完整 questions 数组；分页多取一条。
+- [ ] 把里程碑 3 问卷列表游标迁移为 `{ kind: surveys, updatedAt, id }`，版本历史使用 `{ kind: versions, surveyId, versionNumber }`；两者共用由 `survey-cursor-signing-key:v2` 派生的签名器，跨接口、跨问卷、错误字段或篡改游标返回 `VALIDATION_ERROR`。
+- [ ] 保存版本历史查询 `explain("executionStats")` 证据，证明 `{ surveyId, versionNumber }` 索引反向扫描，并解释聚合各阶段。
+- [ ] 版本历史摘要返回 deadline、三个时间字段、questionCount、isCurrent 和 isDraft；先验证所有权，越权统一 404。
+- [ ] 实现 `PATCH /api/surveys/:surveyId/status`，拒绝未知字段；条件包含 ownerId、非空 currentVersionId 和相反 manualStatus，未命中后重读区分 404、`SURVEY_NOT_PUBLISHED` 与幂等成功；响应按当前版本 deadline 计算状态。
+- [ ] 发布 v2 不改变 `manualStatus`；关闭且到期时有效状态为 closed，重新开放后仍可能是 expired。
+- [ ] 前端实现发布与警告二次确认；旧 revision 必须重新确认，发布网络重试得到 `VERSION_NOT_EDITABLE` 时刷新并识别已经成功的发布。
+- [ ] 前端实现只读发布版本、版本历史、创建下一草稿、放弃草稿、关闭和重新开放；提示关闭状态发布、重新开放仍过期和复制来的过期截止时间。
+- [ ] 测试已发布版本的设置、题目增删改排序、规则、validate 和再次 publish 全部不可编辑，并验证 `status=published` 当且仅当 `publishedAt` 非空。
+- [ ] 测试 `acknowledgeWarnings` 缺失/非布尔、警告 false/true 两步确认和修改后旧确认失效；分别以 `EMPTY_SURVEY`、`JUMP_CYCLE`、`DEADLINE_PASSED` 断言 `PUBLISH_BLOCKED.details.check`，deadline 恰好等于固定 now 时也阻止。
+- [ ] 测试首次发布后的两个版本指针、manualStatus 和统一时间；测试发布并发、发布与编辑竞争、发布与放弃草稿竞争，均恰好一个成功。
+- [ ] 深复制 v2 后修改设置、题目、选项和规则，逐字段验证 v1 不变；发布 v2 后 v1 继续保留。
+- [ ] 用固定时钟覆盖四种状态、`deadline=null`、关闭优先级、幂等状态更新与发布不重开；过去截止时间样例直接写测试库构造，不放宽生产校验。
+- [ ] 测试历史倒序、稳定分页、questionCount、当前/草稿标记、跨接口游标和 explain；所有新增生命周期接口对非所有者统一返回 404。
+- [ ] 使用 `listIndexes` 断言每问卷一个草稿的部分唯一索引存在，键、unique 和 `partialFilterExpression` 均与设计一致。
+- [ ] 扩展种子数据，包含已发布 v1 加草稿 v2、手工关闭和自动到期问卷；清理逻辑保持可扩展与本地保护。
+- [x] 在 `docs/API.md` 和 `SYSTEM_DESIGN.md` 预先同步接口路径、published 状态和五个新错误码；实现后继续按真实响应维护。
+- [ ] 人工比较 v1 与 v2 内容，检查历史、关闭/开放提示和过期状态。
+- [ ] 随做随记 AI 使用、人工修改、事务实验和最终验收。
 
 本里程碑交付：完整的问卷版本生命周期。
 

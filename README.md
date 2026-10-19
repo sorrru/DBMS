@@ -193,6 +193,7 @@ MongoDB 已连接时：
 - [问卷主体与 v1 草稿设计](docs/SURVEY_DRAFT_DESIGN.md)
 - [题目与校验规则设计](docs/QUESTION_DESIGN.md)
 - [跳转规则与发布检查设计](docs/JUMP_DESIGN.md)
+- [版本发布与生命周期设计](docs/VERSION_LIFECYCLE_DESIGN.md)
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 

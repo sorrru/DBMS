@@ -70,10 +70,13 @@
     "id": "version ObjectId",
     "versionNumber": 1,
     "title": "公开标题",
-    "revision": 1
+    "revision": 1,
+    "deadline": null
   }
 }
 ```
+
+里程碑 6 起摘要状态固定为 `draft | published | closed | expired`；`currentVersion` 和 `draftVersion` 均带 `deadline`。状态由共享函数根据当前版本、手工状态和服务端时钟计算。
 
 ### `POST /api/surveys`
 
@@ -81,7 +84,7 @@
 
 ### `GET /api/surveys?limit=20&cursor=...`
 
-返回当前用户的问卷，按 `updatedAt DESC, _id DESC` 排序。`limit` 默认 20、最大 50，必须是 1–50 的整数；0、负数、非整数或超过 50 均返回 `VALIDATION_ERROR`，不会静默截断。`cursor` 是不透明的带签名游标，格式、字段或签名无效时返回 `VALIDATION_ERROR`。
+返回当前用户的问卷，按 `updatedAt DESC, _id DESC` 排序。`limit` 默认 20、最大 50，必须是 1–50 的整数；0、负数、非整数或超过 50 均返回 `VALIDATION_ERROR`，不会静默截断。`cursor` 是不透明的带签名游标，负载固定为 `{ kind: "surveys", updatedAt, id }`；格式、精确字段集合、kind 或签名无效时返回 `VALIDATION_ERROR`。
 
 ```json
 {
@@ -90,7 +93,7 @@
 }
 ```
 
-后端对一页问卷只批量查询一次草稿版本，不能逐条查询。
+后端对一页问卷一次收集 `currentVersionId` 与 `draftVersionId`，再批量查询版本，不能逐条查询。
 
 ### `GET /api/surveys/:surveyId`
 
@@ -102,7 +105,7 @@
 
 ### `GET /api/surveys/:surveyId/versions/:versionId`
 
-返回完整草稿设置：
+返回完整版本定义；草稿可编辑，发布版本只读：
 
 ```json
 {
@@ -289,7 +292,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 第 1 步只判断 JSON 形态、字段白名单、必填字段、原始类型和 ID 格式；长度、选项归属、完整排序集合及跨字段约束属于后续业务规则。业务规则没有专用错误码时仍返回 `400 VALIDATION_ERROR`。字段错误使用稳定的 `details.path`，例如 `validation.maxSelections`、`options[2].text` 或 `questionIds[3]`，前端据此显示就近错误。
 
-## 跳转规则与发布检查（里程碑 5 待复核设计）
+## 跳转规则与发布检查（里程碑 5 已实现并验收）
 
 规则使用扁平结构：
 
@@ -383,30 +386,83 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 完整图模型、共享函数和测试边界见 `JUMP_DESIGN.md`。
 
+## 版本发布与生命周期（里程碑 6 待复核设计）
+
+### `POST /api/surveys/:surveyId/versions/:versionId/publish`
+
+请求必须同时提供当前 revision 和明确的警告确认布尔值：
+
+```json
+{ "revision": 9, "acknowledgeWarnings": false }
+```
+
+`acknowledgeWarnings` 必填且不得使用真值转换。后端在发布事务内重新读取草稿并运行与检查接口相同的 `validateForPublish`：有阻止项返回 `409 PUBLISH_BLOCKED`；只有警告且尚未确认时返回 `409 PUBLISH_WARNINGS_UNCONFIRMED`。两者的 `details.check` 均为完整检查结果。用 `acknowledgeWarnings: true` 重试时仍使用同一 revision；内容变化会先返回 `DRAFT_CONFLICT`，不能确认旧警告。
+
+错误顺序固定为：请求结构 400 → 问卷/版本 404 → `VERSION_NOT_EDITABLE` → `DRAFT_CONFLICT` → `PUBLISH_BLOCKED` → `PUBLISH_WARNINGS_UNCONFIRMED`。成功返回 `200` 与完整 `{ survey, version, check }`。发布把版本状态与 `publishedAt` 同时写入，切换 `currentVersionId`，清空 `draftVersionId`，但不增加 revision、不改变 `manualStatus`。`withTransaction` 每次执行回调时重新读取 now；同一次回调内的 `publishedAt`、版本 `updatedAt` 和问卷 `updatedAt` 使用同一个值。
+
+版本更新条件包含 `{ _id, surveyId, status: "draft", revision }`；问卷更新条件包含 `{ _id, ownerId, draftVersionId: versionId }`。条件未命中时中止事务并重新诊断，不能使用无条件写入。
+
+### `POST /api/surveys/:surveyId/versions`
+
+从当前发布版本创建下一版本草稿：
+
+```json
+{ "sourceVersionId": "当前发布版本 ObjectId" }
+```
+
+判定顺序为：请求结构 400 → 问卷或所有权 404 → 没有当前版本 `SURVEY_NOT_PUBLISHED` → 已有草稿 `DRAFT_ALREADY_EXISTS` → 来源不是当前版本 `SOURCE_VERSION_NOT_CURRENT`。成功返回 `201` 与 `{ survey, version }`。
+
+新版本 `revision=1`、`status=draft`、`publishedAt=null`，版本号为当前版本加一。服务端通过字段白名单和 `structuredClone` 深复制问卷定义，保留题目、选项和规则 ID，不复制数据库 ID、状态和时间戳。事务内条件更新要求 `draftVersionId:null` 且 `currentVersionId:sourceVersionId`，并同步刷新 `surveys.updatedAt`。部分唯一索引继续兜底并发草稿创建。
+
+### `DELETE /api/surveys/:surveyId/versions/:versionId`
+
+放弃下一版本草稿，请求体为 `{ "revision": 3 }`。只允许删除当前草稿指针指向的版本，且问卷已经有发布版本；初始 v1 草稿和发布版本不能删除。判定顺序为：请求结构 400 → 问卷/版本/所有权/组合 404 → `SURVEY_NOT_PUBLISHED` → `VERSION_NOT_EDITABLE` → `DRAFT_CONFLICT`。初始 v1 的错误消息为“初始草稿不能放弃”。Vite 代理已在里程碑 4 的人工测试中确认会保留 DELETE JSON 请求体。
+
+成功返回 `200` 与更新后的 `{ survey }`。删除事务同时清空 `draftVersionId`、刷新 `surveys.updatedAt`；以后重新创建时仍使用 `currentVersionNumber + 1`，不会产生空洞。
+
+### `GET /api/surveys/:surveyId/versions?limit=20&cursor=...`
+
+先校验问卷所有权，再按 `versionNumber DESC` 返回历史摘要。`limit` 必须是 1–50 的整数。聚合使用 `$project` 和 `$size` 在数据库中计算 `questionCount`，不把完整 questions 数组读回应用层。
+
+游标负载固定为 `{ kind: "versions", surveyId, versionNumber }`；问卷列表负载固定为 `{ kind: "surveys", updatedAt, id }`。两者使用由 `survey-cursor-signing-key:v2` 派生的通用签名密钥，以签名负载中的 kind 隔离用途。跨接口、跨问卷、字段集合错误、格式错误或签名错误的游标均返回 `VALIDATION_ERROR`。
+
+每项返回 `id`、`versionNumber`、版本 `status`、`title`、`questionCount`、`revision`、`deadline`、`createdAt`、`updatedAt`、`publishedAt`、`isCurrent` 和 `isDraft`。完整版本继续使用现有详情接口读取；发布版本只读。
+
+### `PATCH /api/surveys/:surveyId/status`
+
+请求只允许 `{ "manualStatus": "closed" }` 或 `{ "manualStatus": "open" }`，未知字段返回 `VALIDATION_ERROR`。条件更新同时匹配 `ownerId`、非空 `currentVersionId` 与请求值相反的 `manualStatus`；真正变化时才刷新 `surveys.updatedAt`。未命中后重新读取：不存在或越权返回 404，无当前版本返回 `SURVEY_NOT_PUBLISHED`，已经是请求值则幂等成功且不更新时间。响应使用当前版本的 `deadline` 计算有效状态后返回 `{ survey }`；重新开放不能绕过已经过去的截止时间。
+
+发布条件更新、两层创建并发保护、放弃草稿、共享时钟、历史聚合、失败注入和前端提示的完整约定见 `VERSION_LIFECYCLE_DESIGN.md`。
+
 ## 稳定错误码
 
-| HTTP | 错误码                   | 含义                                                       |
-| ---: | ------------------------ | ---------------------------------------------------------- |
-|  400 | `VALIDATION_ERROR`       | 字段类型、规则或 JSON 格式错误                             |
-|  401 | `AUTH_REQUIRED`          | 未提供登录 Cookie                                          |
-|  401 | `AUTH_INVALID`           | 登录令牌或对应用户无效                                     |
-|  401 | `INVALID_CREDENTIALS`    | 用户名或密码错误                                           |
-|  403 | `ORIGIN_NOT_ALLOWED`     | 写请求来源缺失或不匹配                                     |
-|  404 | `NOT_FOUND`              | `/api` 下路由不存在                                        |
-|  404 | `SURVEY_NOT_FOUND`       | 问卷/版本不存在、不属于当前用户或组合错误                  |
-|  404 | `QUESTION_NOT_FOUND`     | 格式合法的题目 ID 在目标版本中不存在                       |
-|  409 | `USERNAME_TAKEN`         | 规范化用户名已存在                                         |
-|  409 | `VERSION_NOT_EDITABLE`   | 目标版本已经发布，不能通过草稿接口修改                     |
-|  409 | `DRAFT_CONFLICT`         | 草稿 revision 已变化；`details.currentRevision` 返回当前值 |
-|  409 | `SURVEY_LIMIT_REACHED`   | 当前用户已达到可创建的问卷数量上限                         |
-|  409 | `QUESTION_LIMIT_REACHED` | 草稿已经达到 100 道题上限                                  |
-|  409 | `QUESTION_REFERENCED`    | 题目仍被其他跳转规则作为目标引用                           |
-|  409 | `OPTION_REFERENCED`      | 选项仍被来源题的跳转条件引用                               |
-|  413 | `PAYLOAD_TOO_LARGE`      | JSON 请求体超过 256 KiB                                    |
-|  415 | `UNSUPPORTED_MEDIA_TYPE` | 带请求体的接口未使用 `application/json`                    |
-|  429 | `RATE_LIMITED`           | 请求超过限流；响应含 `Retry-After`                         |
-|  500 | `INTERNAL_ERROR`         | 未预期服务错误，不向客户端暴露内部信息                     |
+| HTTP | 错误码                         | 含义                                                       |
+| ---: | ------------------------------ | ---------------------------------------------------------- |
+|  400 | `VALIDATION_ERROR`             | 字段类型、规则或 JSON 格式错误                             |
+|  401 | `AUTH_REQUIRED`                | 未提供登录 Cookie                                          |
+|  401 | `AUTH_INVALID`                 | 登录令牌或对应用户无效                                     |
+|  401 | `INVALID_CREDENTIALS`          | 用户名或密码错误                                           |
+|  403 | `ORIGIN_NOT_ALLOWED`           | 写请求来源缺失或不匹配                                     |
+|  404 | `NOT_FOUND`                    | `/api` 下路由不存在                                        |
+|  404 | `SURVEY_NOT_FOUND`             | 问卷/版本不存在、不属于当前用户或组合错误                  |
+|  404 | `QUESTION_NOT_FOUND`           | 格式合法的题目 ID 在目标版本中不存在                       |
+|  409 | `USERNAME_TAKEN`               | 规范化用户名已存在                                         |
+|  409 | `VERSION_NOT_EDITABLE`         | 目标版本已经发布，不能通过草稿接口修改                     |
+|  409 | `DRAFT_CONFLICT`               | 草稿 revision 已变化；`details.currentRevision` 返回当前值 |
+|  409 | `SURVEY_LIMIT_REACHED`         | 当前用户已达到可创建的问卷数量上限                         |
+|  409 | `QUESTION_LIMIT_REACHED`       | 草稿已经达到 100 道题上限                                  |
+|  409 | `QUESTION_REFERENCED`          | 题目仍被其他跳转规则作为目标引用                           |
+|  409 | `OPTION_REFERENCED`            | 选项仍被来源题的跳转条件引用                               |
+|  409 | `PUBLISH_BLOCKED`              | 发布检查存在阻止项；details 返回最新检查                   |
+|  409 | `PUBLISH_WARNINGS_UNCONFIRMED` | 发布警告尚未明确确认                                       |
+|  409 | `DRAFT_ALREADY_EXISTS`         | 问卷已经有下一版本草稿                                     |
+|  409 | `SURVEY_NOT_PUBLISHED`         | 操作要求问卷已有当前发布版本                               |
+|  409 | `SOURCE_VERSION_NOT_CURRENT`   | 创建草稿的来源不是当前发布版本                             |
+|  413 | `PAYLOAD_TOO_LARGE`            | JSON 请求体超过 256 KiB                                    |
+|  415 | `UNSUPPORTED_MEDIA_TYPE`       | 带请求体的接口未使用 `application/json`                    |
+|  429 | `RATE_LIMITED`                 | 请求超过限流；响应含 `Retry-After`                         |
+|  500 | `INTERNAL_ERROR`               | 未预期服务错误，不向客户端暴露内部信息                     |
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷主体和题目接口均已实现并通过自动测试和人工验收。跳转、发布、填写和统计尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转与发布检查接口均已实现并通过自动测试和人工验收。真正发布、填写和统计尚未开始。

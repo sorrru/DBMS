@@ -91,7 +91,9 @@ PATCH 请求中 `revision` 必填且必须是正整数。`deadline: null` 表示
 { ownerId: 1, updatedAt: -1, _id: -1 }
 ```
 
-默认每页 20 条，最大 50 条。`limit` 必须是 1–50 的整数，越界或格式错误时返回 `VALIDATION_ERROR`，不静默截断。查询多取一条判断是否存在下一页。游标是不透明、带版本号和签名的 Base64URL 值，内部包含上一页末项的 `updatedAt` 与 `_id`。签名密钥通过 `HMAC-SHA256(key=JWT_SECRET, data="survey-list-cursor-key:v1")` 做用途隔离派生，再用派生密钥签名游标负载；游标不是登录令牌，也不能作为授权依据。格式错误、签名错误、字段错误或被篡改的游标返回 `VALIDATION_ERROR`。
+默认每页 20 条，最大 50 条。`limit` 必须是 1–50 的整数，越界或格式错误时返回 `VALIDATION_ERROR`，不静默截断。查询多取一条判断是否存在下一页。游标是不透明、带版本号和签名的 Base64URL 值。里程碑 6 将签名派生标签统一迁移为 `HMAC-SHA256(key=JWT_SECRET, data="survey-cursor-signing-key:v2")`，问卷列表负载固定为 `{ kind: "surveys", updatedAt, id }`；版本历史使用不同 kind 和字段集合。签名器严格拒绝多余或缺失字段，跨接口游标不能混用。游标不是登录令牌，也不能作为授权依据。格式错误、签名错误、字段错误或被篡改的游标返回 `VALIDATION_ERROR`。
+
+迁移后，里程碑 3 生成的旧 `survey-list-cursor-key:v1` 游标不再接受。游标只保存短期分页位置，用户刷新列表即可取得新游标，因此本项目不提供双版本兼容期。
 
 下一页查询固定为同一所有者，且满足 `updatedAt` 小于游标时间，或 `updatedAt` 相同而 `_id` 小于游标 ID。即使游标通过签名，也仍重新应用 `ownerId` 条件。
 

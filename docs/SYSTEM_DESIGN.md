@@ -134,7 +134,7 @@ MongoDB
 }
 ```
 
-版本只使用 `draft` 和 `published`。`revision` 是草稿的乐观并发版本号，每次成功保存加一；发布后不可修改。历史发布版本由回答继续引用，当前版本由 `surveys.currentVersionId` 指定。保存草稿设置时，版本修改和 `surveys.updatedAt` 更新必须放在同一事务中，使“我的问卷”排序反映最近编辑时间。
+版本只使用 `draft` 和 `published`，且 `status === "published"` 当且仅当 `publishedAt` 非空。`revision` 是草稿的乐观并发版本号，每次成功保存加一；发布后不可修改。历史发布版本由回答继续引用，当前版本由 `surveys.currentVersionId` 指定。保存草稿设置时，版本修改和 `surveys.updatedAt` 更新必须放在同一事务中，使“我的问卷”排序反映最近编辑时间。
 
 ### fill_sessions
 
@@ -308,7 +308,13 @@ v2 published ← 新当前版本
 v1 保留历史回答与统计
 ```
 
-发布新版本应使用 MongoDB 事务，原子完成草稿校验、版本发布、当前版本指针更新和草稿指针清理。本地 Docker 环境配置单节点副本集以支持事务。
+发布新版本使用 MongoDB `withTransaction`，原子完成草稿复核、版本条件更新、当前版本指针更新和草稿指针清理。版本写条件包含 `status: draft` 与 revision，问卷写条件包含当前 `draftVersionId`，并发编辑不能被无条件覆盖。事务回调每次重试都重新读取一次 now；同一次回调内版本的 `publishedAt`、版本的 `updatedAt` 和问卷的 `updatedAt` 共用该值，revision 不增加。新版本发布不修改 `manualStatus`。
+
+下一版本草稿通过字段白名单深复制当前版本，在同一事务写入版本、更新草稿指针和 `surveys.updatedAt`；问卷条件更新与草稿部分唯一索引共同防止并发创建。其判定顺序先检查是否已有当前发布版本，再检查已有草稿，最后检查来源是否为当前版本。放弃草稿依次判断请求、归属、是否为初始草稿、版本状态和 revision。完整流程、错误顺序、失败注入和历史查询见 `VERSION_LIFECYCLE_DESIGN.md`。
+
+有效状态由共享包中的 `computeSurveyStatus(survey, currentVersion, now)` 计算，列表、公开摘要、填写会话与提交共用。`now` 由服务层时钟依赖提供，不接受客户端时间。问卷摘要的当前版本信息包含 deadline，列表仍通过一次批量版本查询计算状态。状态修改使用包含所有权、非空当前版本和相反 `manualStatus` 的条件更新；未命中后重新读取以区分 404、未发布和幂等成功，并用当前版本 deadline 计算响应状态。
+
+问卷列表与版本历史使用同一通用游标签名器，派生标签为 `survey-cursor-signing-key:v2`，签名负载分别带 `kind: surveys` 和 `kind: versions`；严格字段校验阻止跨接口混用。旧列表游标是短期页面状态，迁移后通过刷新列表重新取得。
 
 创建问卷同样使用 `withTransaction`。事务开始前生成 survey 与 version 两个 ObjectId，使两个文档可以在首次插入时直接互相引用，不经过“先插入再回填”。`publicId` 由至少 128 位随机值生成，并由唯一索引兜底；发生重复键时整个事务失败，不在事务内部局部重试。
 
@@ -331,16 +337,16 @@ v1 保留历史回答与统计
 | GET   | `/api/surveys`                  | 我的问卷列表       |
 | GET   | `/api/surveys/:surveyId`        | 问卷及版本摘要     |
 | PATCH | `/api/surveys/:surveyId`        | 修改内部管理名称   |
-| POST  | `/api/surveys/:surveyId/close`  | 手工关闭           |
-| POST  | `/api/surveys/:surveyId/reopen` | 手工重新开放       |
+| PATCH | `/api/surveys/:surveyId/status` | 手工关闭或重新开放 |
 
 ### 版本管理
 
 | 方法   | 路径                                                                          | 作用                     |
 | ------ | ----------------------------------------------------------------------------- | ------------------------ |
 | GET    | `/api/surveys/:surveyId/versions`                                             | 版本列表                 |
-| POST   | `/api/surveys/:surveyId/versions/draft`                                       | 创建下一版本草稿         |
+| POST   | `/api/surveys/:surveyId/versions`                                             | 创建下一版本草稿         |
 | GET    | `/api/surveys/:surveyId/versions/:versionId`                                  | 查看版本                 |
+| DELETE | `/api/surveys/:surveyId/versions/:versionId`                                  | 放弃下一版本草稿         |
 | PATCH  | `/api/surveys/:surveyId/versions/:versionId`                                  | 修改草稿设置             |
 | POST   | `/api/surveys/:surveyId/versions/:versionId/questions`                        | 添加题目                 |
 | PATCH  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId`            | 修改题目                 |
@@ -365,20 +371,25 @@ v1 保留历史回答与统计
 | GET  | `/api/surveys/:surveyId/versions/:versionId/statistics` | 版本统计     |
 | GET  | `/api/surveys/:surveyId/versions/:versionId/responses`  | 分页查看回答 |
 
-### 问卷草稿错误码
+### 问卷与版本错误码
 
-| HTTP | 错误码                   | 含义                                            |
-| ---: | ------------------------ | ----------------------------------------------- |
-|  404 | `SURVEY_NOT_FOUND`       | 问卷/版本不存在、不属于当前用户或组合错误       |
-|  404 | `QUESTION_NOT_FOUND`     | 格式合法的题目 ID 在目标版本中不存在            |
-|  409 | `VERSION_NOT_EDITABLE`   | 目标版本已发布，不能通过草稿接口修改            |
-|  409 | `DRAFT_CONFLICT`         | 客户端 revision 过期；details 返回当前 revision |
-|  409 | `SURVEY_LIMIT_REACHED`   | 当前用户达到可配置的问卷数量上限                |
-|  409 | `QUESTION_LIMIT_REACHED` | 目标版本已经达到 100 道题上限                   |
-|  409 | `QUESTION_REFERENCED`    | 题目仍被其他跳转规则引用                        |
-|  409 | `OPTION_REFERENCED`      | 选项仍被本题跳转规则引用                        |
+| HTTP | 错误码                         | 含义                                            |
+| ---: | ------------------------------ | ----------------------------------------------- |
+|  404 | `SURVEY_NOT_FOUND`             | 问卷/版本不存在、不属于当前用户或组合错误       |
+|  404 | `QUESTION_NOT_FOUND`           | 格式合法的题目 ID 在目标版本中不存在            |
+|  409 | `VERSION_NOT_EDITABLE`         | 目标版本已发布，不能通过草稿接口修改            |
+|  409 | `DRAFT_CONFLICT`               | 客户端 revision 过期；details 返回当前 revision |
+|  409 | `SURVEY_LIMIT_REACHED`         | 当前用户达到可配置的问卷数量上限                |
+|  409 | `QUESTION_LIMIT_REACHED`       | 目标版本已经达到 100 道题上限                   |
+|  409 | `QUESTION_REFERENCED`          | 题目仍被其他跳转规则引用                        |
+|  409 | `OPTION_REFERENCED`            | 选项仍被本题跳转规则引用                        |
+|  409 | `PUBLISH_BLOCKED`              | 发布检查存在阻止项                              |
+|  409 | `PUBLISH_WARNINGS_UNCONFIRMED` | 发布警告尚未由创建者明确确认                    |
+|  409 | `DRAFT_ALREADY_EXISTS`         | 问卷已经有下一版本草稿                          |
+|  409 | `SURVEY_NOT_PUBLISHED`         | 操作要求问卷已有当前发布版本                    |
+|  409 | `SOURCE_VERSION_NOT_CURRENT`   | 草稿复制来源不是当前发布版本                    |
 
-所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`。
+所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`；发布、历史版本、放弃草稿和有效状态见 `VERSION_LIFECYCLE_DESIGN.md`。
 
 ## 前端范围
 
