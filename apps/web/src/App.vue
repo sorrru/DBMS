@@ -9,6 +9,7 @@ import {
   type PublicUser,
 } from "./auth";
 import DeadlineInput from "./DeadlineInput.vue";
+import QuestionEditor from "./QuestionEditor.vue";
 import { fetchHealth, type HealthResponse } from "./health";
 import {
   changedDraftFields,
@@ -37,6 +38,8 @@ const user = ref<PublicUser>();
 const health = ref<HealthResponse>();
 const loading = ref(true);
 const submitting = ref(false);
+const writing = ref(false);
+const questionsDirty = ref(false);
 const message = ref("");
 const surveys = ref<SurveySummary[]>([]);
 const nextCursor = ref<string | null>(null);
@@ -62,6 +65,7 @@ const changed = computed(() =>
   original.value ? changedDraftFields(original.value, form) : {},
 );
 const dirty = computed(() => Object.keys(changed.value).length > 0);
+const hasUnsaved = computed(() => dirty.value || questionsDirty.value);
 const recoveryChanges = computed(() =>
   recovery.value && original.value
     ? changedDraftFields(original.value, recovery.value.draft.fields)
@@ -132,6 +136,15 @@ function showError(error: unknown): void {
   message.value =
     error instanceof Error ? error.message : "操作失败，请稍后重试";
 }
+function showQuestionError(error: unknown): void {
+  if (
+    error instanceof ApiClientError &&
+    error.code === "VALIDATION_ERROR" &&
+    typeof error.details?.path === "string"
+  )
+    return;
+  showError(error);
+}
 function clearFieldError(field: string): void {
   delete fieldErrors[field];
   message.value = "";
@@ -199,6 +212,7 @@ async function openEditor(survey: SurveySummary): Promise<void> {
     Object.keys(fieldErrors).forEach((field) => delete fieldErrors[field]);
     message.value = "";
     savedAt.value = "";
+    questionsDirty.value = false;
   } catch (error) {
     showError(error);
   }
@@ -218,6 +232,7 @@ function discardRecovery(): void {
 async function saveName(): Promise<void> {
   if (!selectedSurvey.value) return;
   clearFieldError("internalName");
+  writing.value = true;
   try {
     const result = await renameSurvey(
       selectedSurvey.value.id,
@@ -230,6 +245,8 @@ async function saveName(): Promise<void> {
     savedAt.value = new Date().toLocaleTimeString("zh-CN");
   } catch (error) {
     showError(error);
+  } finally {
+    writing.value = false;
   }
 }
 
@@ -243,7 +260,7 @@ async function saveDraft(): Promise<void> {
     return;
   Object.keys(fieldErrors).forEach((field) => delete fieldErrors[field]);
   message.value = "";
-  submitting.value = true;
+  writing.value = true;
   try {
     const result = await patchDraft(
       selectedSurvey.value.id,
@@ -266,23 +283,32 @@ async function saveDraft(): Promise<void> {
   } catch (error) {
     showError(error);
   } finally {
-    submitting.value = false;
+    writing.value = false;
   }
 }
 
+function updateQuestionVersion(version: SurveyVersion): void {
+  selectedVersion.value = version;
+  savedAt.value = new Date(version.updatedAt).toLocaleString("zh-CN");
+  message.value = "";
+}
+
 function backToList(): void {
-  if (dirty.value && !window.confirm("仍有未保存的设置，确定离开吗？")) return;
+  if (hasUnsaved.value && !window.confirm("仍有未保存内容，确定离开吗？"))
+    return;
   page.value = "list";
   selectedSurvey.value = undefined;
   selectedVersion.value = undefined;
   original.value = undefined;
   recovery.value = undefined;
+  questionsDirty.value = false;
   Object.keys(fieldErrors).forEach((field) => delete fieldErrors[field]);
   message.value = "";
 }
 
 async function signOut(): Promise<void> {
-  if (dirty.value && !window.confirm("仍有未保存的设置，确定退出吗？")) return;
+  if (hasUnsaved.value && !window.confirm("仍有未保存内容，确定退出吗？"))
+    return;
   try {
     await logout();
   } catch (error) {
@@ -303,7 +329,7 @@ function switchMode(next: Mode): void {
   message.value = "";
 }
 const beforeUnload = (event: BeforeUnloadEvent) => {
-  if (dirty.value) event.preventDefault();
+  if (hasUnsaved.value) event.preventDefault();
 };
 
 onMounted(async () => {
@@ -449,7 +475,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
       <header class="workspace-header">
         <div>
           <p class="eyebrow">{{ user.username }}</p>
-          <h2>{{ page === "list" ? "我的问卷" : "基础设置" }}</h2>
+          <h2>{{ page === "list" ? "我的问卷" : "问卷编辑" }}</h2>
         </div>
         <button class="secondary compact" type="button" @click="signOut">
           退出登录
@@ -542,7 +568,9 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
               }}</span></label
             ><button
               class="secondary"
-              :disabled="internalName === selectedSurvey.internalName"
+              :disabled="
+                writing || internalName === selectedSurvey.internalName
+              "
             >
               保存管理名称
             </button>
@@ -610,12 +638,21 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
               }}</span
               ><button
                 class="primary"
-                :disabled="!dirty || submitting || !deadlineInputValid"
+                :disabled="!dirty || writing || !deadlineInputValid"
               >
                 保存设置
               </button>
             </div>
           </form>
+          <QuestionEditor
+            :survey-id="selectedSurvey.id"
+            :version="selectedVersion"
+            :busy="writing"
+            @updated="updateQuestionVersion"
+            @busy="writing = $event"
+            @dirty="questionsDirty = $event"
+            @failure="showQuestionError"
+          />
         </div>
       </template>
     </section>

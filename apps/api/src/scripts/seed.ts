@@ -77,7 +77,55 @@ async function main(): Promise<void> {
     env,
     new SurveyCursorService(env.jwtSecret),
   );
-  await surveys.create(user._id, "匿名课程反馈（种子）");
+  const anonymous = await surveys.create(user._id, "匿名课程反馈（种子）");
+  let anonymousRevision = 1;
+  const addAnonymousQuestion = async (
+    type: "single" | "multiple" | "text" | "number",
+    title: string,
+    validation: Record<string, unknown>,
+    options: Array<{ text: string }>,
+    required = false,
+  ) => {
+    const result = await surveys.addQuestion(
+      user._id,
+      anonymous.id,
+      anonymous.draftVersion!.id,
+      {
+        revision: anonymousRevision,
+        type,
+        title,
+        required,
+        validation,
+        options,
+      },
+    );
+    anonymousRevision = result.version.revision;
+  };
+  await addAnonymousQuestion(
+    "single",
+    "你对课程整体满意吗？",
+    {},
+    [{ text: "满意" }, { text: "一般" }, { text: "不满意" }],
+    true,
+  );
+  await addAnonymousQuestion(
+    "multiple",
+    "哪些内容最有帮助？",
+    { minSelections: 1, maxSelections: 2 },
+    [{ text: "课堂讲解" }, { text: "课程实验" }, { text: "课后讨论" }],
+  );
+  await addAnonymousQuestion(
+    "text",
+    "联系电话（仅 ASCII 数字）",
+    { minLength: 7, maxLength: 20, digitsOnly: true },
+    [],
+  );
+  await addAnonymousQuestion(
+    "number",
+    "每周学习时长（小时）",
+    { integerOnly: false, minValue: 0, maxValue: 168 },
+    [],
+  );
   const identified = await surveys.create(user._id, "实名活动报名（种子）");
   await surveys.patchDraft(
     user._id,
@@ -86,7 +134,7 @@ async function main(): Promise<void> {
     1,
     { identityMode: "identified" },
   );
-  console.info(`种子数据已创建：${seedUsername}，2 份 v1 草稿`);
+  console.info(`种子数据已创建：${seedUsername}，2 份 v1 草稿及四种题型`);
 }
 
 void main()

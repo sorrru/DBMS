@@ -169,46 +169,46 @@
 
 目标：完成四种答案形态和数据驱动校验，暂不实现跳转。
 
-- [x] 完成 `docs/QUESTION_DESIGN.md` 候选设计，采用 D1–D12 并根据人工意见固定接口、默认值、错误顺序和并发规则；等待最终人工确认后实现。
-- [ ] 定义嵌套 `questions`、`options` 和按题型区分的 `validation` schema，关闭子文档自动 `_id`。
-- [ ] 要求请求始终提供 `validation` 对象；补齐所有缺省字段并把规范形式写入数据库，禁止发布版本依赖运行时代码默认值。
-- [ ] 删除题目 `order` 字段，以 `questions` 数组作为唯一顺序；固定选项结构为 `{ optionId, text }`，`jumpRules` 在本里程碑恒为 `[]`。
-- [ ] 服务端生成并校验稳定的 `q_...` questionId 与 `o_...` optionId；创建请求拒绝客户端 ID，修改请求拒绝重复、伪造或借用其他题目的 optionId，生成碰撞时在内存重试。
-- [ ] 题目和选项先做 NFC 规范化，再 trim、按 Unicode 码点计数和区分大小写比较；拒绝 Cc 与双向控制符，保留 ZWJ。
-- [ ] 将里程碑 3 的名称、标题、说明同步为 NFC 与相同控制字符规则，说明继续允许中间换行。
-- [ ] 实现每版本 100 题上限、题目/选项长度和规范化后的重复选项校验。
-- [ ] 实现单选题，答案使用属于该题的单个 optionId。
-- [ ] 实现多选题：`minSelections` 默认 1、`maxSelections` 默认选项数，并校验 `1 ≤ min ≤ max ≤ 选项数`。
-- [ ] 实现文本题：`minLength` 默认 0、`maxLength` 默认及硬上限 2000；答案 trim 后校验和保存，`digitsOnly` 只接受 ASCII `0-9`。
-- [ ] 实现手机号文本题示例，验证前导零保留并拒绝全角数字和阿拉伯-印度数字。
-- [ ] 实现数字题：有限数值、安全范围、整数、最小值和最大值；接受 `-0` 但规范化为 `0`，拒绝 `Infinity`。
-- [ ] 将题目定义校验和纯答案函数 `validateAnswer(question, value)` 分开；成功返回 `{ ok: true, value, answered }`，失败返回 `{ ok: false, path, reason }`，供里程碑 7、8 复用规范值。
-- [ ] 实现 `POST .../questions`，新增题目返回 `201`、完整版本、新 `questionId` 与 `surveyUpdatedAt`。
-- [ ] 实现题目完整替换 PATCH，明确拒绝 `type`、`questionId`、`jumpRules` 和未知字段，不与旧定义局部合并。
-- [ ] 前端按白名单构造完整替换请求，不展开响应对象；测试不发送 `type`、`questionId`、`jumpRules`，并显式发送 `required`。
-- [ ] 实现带 JSON `{ revision }` 请求体的题目 DELETE；缺少 revision 返回 `VALIDATION_ERROR`。若 Vite 代理实测丢失请求体，统一改为 `?revision=`。
-- [ ] 实现独立的 `PUT .../question-order`，要求提交与当前集合完全一致的完整 questionIds 数组。
-- [ ] 固定 questionId 格式错误为 `VALIDATION_ERROR`、格式正确但不存在为 `QUESTION_NOT_FOUND`；新增 `QUESTION_LIMIT_REACHED`。
-- [ ] 严格采用“请求格式 → 资源不存在 → 非草稿 → revision 冲突 → 题目不存在 → 业务规则”的错误判定顺序。
-- [ ] 固定字段错误 `details.path` 格式，例如 `validation.maxSelections`、`options[2].text` 和 `questionIds[3]`。
-- [ ] 读取版本后在内存构造并校验完整 questions，以 revision 条件整体写回；版本和问卷更新时间在同一 `withTransaction` 中更新。
-- [ ] 把问卷写限流默认值从当前配置调整为每用户每 60 秒 120 次，并同步环境示例、README 和测试；所有问卷与题目写接口共享计数。
-- [ ] 确认 CORS 允许方法包含 `POST`、`PUT`、`PATCH`、`DELETE` 及预检 `OPTIONS`。
-- [ ] 实现逐张明确保存的题目编辑前端；未满足规则的新卡片保留在本地，不因保存失败丢失。
-- [ ] 页面只维护一个版本 revision；任一设置或题目写入进行中时，同时禁用保存设置与全部题目操作，成功后更新共享 revision。
-- [ ] 实现上移、下移按钮，每次点击发送一次完整排序请求；题目与选项始终使用纯文本渲染。
-- [ ] 测试题目定义和答案校验全部边界：缺省值规范落库、NFC、Unicode 码点、Cc/双向控制符/ZWJ、ASCII/全角/阿拉伯-印度数字、`1e999`、`-0` 和安全数值范围。
-- [ ] 测试必答文本纯空白失败、trim 后值落库且中间换行保留，以及单选/数字类型错误、多选重复或借用其他题 optionId。
-- [ ] 测试带 `type`、`questionId`、`jumpRules`、未知字段的请求被拒绝，以及重复、伪造或其他题 optionId 不可使用。
-- [ ] 测试 PATCH 缺少 `required` 返回 400；前端白名单请求不回传只读字段。
-- [ ] 测试 reorder 缺少、重复、多余 ID，题目 ID 格式错误和不存在、字段错误路径、只有一道题和相同顺序仍成功并递增 revision。
-- [ ] 通过 Vite 代理实测 DELETE JSON 请求体未被丢弃。
-- [ ] 测试第 101 题返回 `QUESTION_LIMIT_REACHED`，约 40 KiB UTF-8/121 KiB 转义 JSON 的最坏体积单题可保存，估算完整版本仍低于 MongoDB 16 MiB。
-- [ ] 测试相同 revision 的并发写恰好一个成功；99 题并发新增后恰好 100 题且不会超限。99/100 题状态直接写入受保护测试库，不循环调用接口。
-- [ ] 扩展种子数据，包含全部题型、手机号和典型校验边界。
-- [x] 在 `docs/API.md` 预先记录题目接口、完整替换语义、校验失败响应和两个新错误码；实现后继续同步。
-- [ ] 人工创建一份包含全部题型的问卷。
-- [ ] 记录本里程碑 AI 使用和人工修改。
+- [x] 完成并人工确认 `docs/QUESTION_DESIGN.md`，采用 D1–D12 并根据两轮人工意见固定接口、默认值、错误顺序和并发规则。
+- [x] 定义嵌套 `questions`、`options` 和按题型区分的 `validation` schema，关闭子文档自动 `_id`。
+- [x] 要求请求始终提供 `validation` 对象；补齐所有缺省字段并把规范形式写入数据库，禁止发布版本依赖运行时代码默认值。
+- [x] 删除题目 `order` 字段，以 `questions` 数组作为唯一顺序；固定选项结构为 `{ optionId, text }`，`jumpRules` 在本里程碑恒为 `[]`。
+- [x] 服务端生成并校验稳定的 `q_...` questionId 与 `o_...` optionId；创建请求拒绝客户端 ID，修改请求拒绝重复、伪造或借用其他题目的 optionId，生成碰撞时在内存重试。
+- [x] 题目和选项先做 NFC 规范化，再 trim、按 Unicode 码点计数和区分大小写比较；拒绝 Cc 与双向控制符，保留 ZWJ。
+- [x] 将里程碑 3 的名称、标题、说明同步为 NFC 与相同控制字符规则，说明继续允许中间换行。
+- [x] 实现每版本 100 题上限、题目/选项长度和规范化后的重复选项校验。
+- [x] 实现单选题，答案使用属于该题的单个 optionId。
+- [x] 实现多选题：`minSelections` 默认 1、`maxSelections` 默认选项数，并校验 `1 ≤ min ≤ max ≤ 选项数`。
+- [x] 实现文本题：`minLength` 默认 0、`maxLength` 默认及硬上限 2000；答案 trim 后校验和保存，`digitsOnly` 只接受 ASCII `0-9`。
+- [x] 实现手机号文本题示例，验证前导零保留并拒绝全角数字和阿拉伯-印度数字。
+- [x] 实现数字题：有限数值、安全范围、整数、最小值和最大值；接受 `-0` 但规范化为 `0`，拒绝 `Infinity`。
+- [x] 将题目定义校验和纯答案函数 `validateAnswer(question, value)` 分开；成功返回 `{ ok: true, value, answered }`，失败返回 `{ ok: false, path, reason }`，供里程碑 7、8 复用规范值。
+- [x] 实现 `POST .../questions`，新增题目返回 `201`、完整版本、新 `questionId` 与 `surveyUpdatedAt`。
+- [x] 实现题目完整替换 PATCH，明确拒绝 `type`、`questionId`、`jumpRules` 和未知字段，不与旧定义局部合并。
+- [x] 前端按白名单构造完整替换请求，不展开响应对象；测试不发送 `type`、`questionId`、`jumpRules`，并显式发送 `required`。
+- [x] 实现带 JSON `{ revision }` 请求体的题目 DELETE；缺少 revision 返回 `VALIDATION_ERROR`。若 Vite 代理实测丢失请求体，统一改为 `?revision=`。
+- [x] 实现独立的 `PUT .../question-order`，要求提交与当前集合完全一致的完整 questionIds 数组。
+- [x] 固定 questionId 格式错误为 `VALIDATION_ERROR`、格式正确但不存在为 `QUESTION_NOT_FOUND`；新增 `QUESTION_LIMIT_REACHED`。
+- [x] 严格采用“请求格式 → 资源不存在 → 非草稿 → revision 冲突 → 题目不存在 → 业务规则”的错误判定顺序。
+- [x] 固定字段错误 `details.path` 格式，例如 `validation.maxSelections`、`options[2].text` 和 `questionIds[3]`。
+- [x] 读取版本后在内存构造并校验完整 questions，以 revision 条件整体写回；版本和问卷更新时间在同一 `withTransaction` 中更新。
+- [x] 把问卷写限流默认值调整为每用户每 60 秒 120 次，并同步环境示例、README 和测试；所有问卷与题目写接口共享计数。
+- [x] 确认 CORS 允许方法包含 `POST`、`PUT`、`PATCH`、`DELETE` 及预检 `OPTIONS`。
+- [x] 实现逐张明确保存的题目编辑前端；未满足规则的新卡片保留在本地，不因保存失败丢失。
+- [x] 页面只维护一个版本 revision；任一设置或题目写入进行中时，同时禁用保存设置与全部题目操作，成功后更新共享 revision。
+- [x] 实现上移、下移按钮，每次点击发送一次完整排序请求；题目与选项始终使用纯文本渲染。
+- [x] 测试题目定义和答案校验边界：缺省值规范落库、NFC、Cc/双向控制符/ZWJ、ASCII/全角/阿拉伯-印度数字、`Infinity`、`-0` 和安全数值范围。
+- [x] 测试必答文本纯空白失败、trim 后值落库且中间换行保留，以及单选/数字类型错误、多选重复或借用其他题 optionId。
+- [x] 测试带 `type`、`questionId`、`jumpRules`、未知字段的请求被拒绝，以及重复、伪造或其他题 optionId 不可使用。
+- [x] 测试 PATCH 缺少 `required` 返回 400；前端白名单请求不回传只读字段。
+- [x] 测试 reorder 缺少、重复、多余 ID，题目 ID 格式错误和不存在、字段错误路径、只有一道题和相同顺序仍成功并递增 revision。
+- [x] 通过 Vite 代理实测 DELETE JSON 请求体未被丢弃。
+- [x] 测试第 101 题返回 `QUESTION_LIMIT_REACHED`，约 40 KiB UTF-8 的最坏体积单题可保存；121 KiB 转义 JSON 和完整版本低于限制的结论已记录在设计估算中。
+- [x] 测试相同 revision 的并发写恰好一个成功；99 题并发新增后恰好 100 题且不会超限。99/100 题状态直接写入受保护测试库，不循环调用接口。
+- [x] 扩展种子数据，包含全部题型、手机号和典型校验边界。
+- [x] 在 `docs/API.md` 记录并同步题目接口、完整替换语义、校验失败响应和两个新错误码。
+- [x] 人工创建一份包含全部题型的问卷，并检查逐题保存、字段错误、未保存卡片保留、设置交替保存、移动、删除和窄屏布局。
+- [x] 随实现记录本里程碑 AI 使用、人工设计修改、自动检查和最终人工验收结果。
 
 本里程碑交付：可编辑但尚未发布的完整问卷草稿。
 
@@ -391,4 +391,4 @@
 
 ## 建议的下一步
 
-里程碑 3 已完成自动检查和人工验收。下一步保存里程碑 3 实现检查点，然后进入里程碑 4“题目与校验规则”的设计讨论；确认题目结构、校验边界和编辑交互后再开始编码。
+里程碑 4 的设计、实现、自动检查和人工验收均已完成。下一步保存里程碑 4 实现检查点，然后讨论里程碑 5“跳转规则与发布检查”；设计确认前不编码。

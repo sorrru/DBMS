@@ -1,8 +1,8 @@
 import { validationError } from "../errors/api-error.js";
 
-const nameControl = /[\r\n\u0000-\u001f\u007f-\u009f]/u;
+const nameControl = /[\p{Cc}\u202a-\u202e\u2066-\u2069]/u;
 const descriptionControl =
-  /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f-\u009f]/u;
+  /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 const hasTimezone = /(Z|[+-]\d{2}:\d{2})$/i;
 
 function objectBody(body: unknown): Record<string, unknown> {
@@ -26,7 +26,7 @@ function text(
   allowNewlines = false,
 ): string {
   if (typeof value !== "string") throw validationError(field);
-  const normalized = value.trim();
+  const normalized = value.normalize("NFC").trim();
   const length = Array.from(normalized).length;
   if (
     length < 1 ||
@@ -76,11 +76,18 @@ export function validateDraftPatch(
   if ("description" in value) {
     if (
       typeof value.description !== "string" ||
-      Array.from(value.description).length > 2_000 ||
-      descriptionControl.test(value.description)
+      Array.from(
+        value.description.normalize("NFC").replace(/\r\n?/g, "\n").trim(),
+      ).length > 2_000 ||
+      descriptionControl.test(
+        value.description.normalize("NFC").replace(/\r\n?/g, "\n").trim(),
+      )
     )
       throw validationError("description");
-    changes.description = value.description;
+    changes.description = value.description
+      .normalize("NFC")
+      .replace(/\r\n?/g, "\n")
+      .trim();
   }
   if ("identityMode" in value) {
     if (

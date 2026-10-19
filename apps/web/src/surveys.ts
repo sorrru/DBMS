@@ -28,11 +28,31 @@ export interface SurveyVersion {
   allowMultipleSubmissions: boolean;
   deadline: string | null;
   sessionDurationMinutes: number;
-  questions: unknown[];
+  questions: SurveyQuestion[];
   schemaVersion: number;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+}
+export type QuestionType = "single" | "multiple" | "text" | "number";
+export interface QuestionOption {
+  optionId: string;
+  text: string;
+}
+export interface SurveyQuestion {
+  questionId: string;
+  type: QuestionType;
+  title: string;
+  required: boolean;
+  validation: Record<string, unknown>;
+  options: QuestionOption[];
+  jumpRules: unknown[];
+}
+export interface EditableQuestion {
+  title: string;
+  required: boolean;
+  validation: Record<string, unknown>;
+  options: Array<{ optionId?: string; text: string }>;
 }
 export type DraftFields = Pick<
   SurveyVersion,
@@ -50,6 +70,11 @@ export interface StoredDraft {
 
 const jsonPatch = (body: unknown): RequestInit => ({
   method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+const jsonRequest = (method: string, body: unknown): RequestInit => ({
+  method,
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
@@ -80,6 +105,72 @@ export const patchDraft = (
   apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
     `/api/surveys/${surveyId}/versions/${versionId}`,
     jsonPatch(body),
+  );
+
+export function buildQuestionPatch(
+  revision: number,
+  question: EditableQuestion,
+): Record<string, unknown> {
+  return {
+    revision,
+    title: question.title,
+    required: question.required,
+    validation: { ...question.validation },
+    options: question.options.map((option) => ({
+      ...(option.optionId ? { optionId: option.optionId } : {}),
+      text: option.text,
+    })),
+  };
+}
+
+export const addQuestion = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+  type: QuestionType,
+  question: EditableQuestion,
+) =>
+  apiRequest<{
+    version: SurveyVersion;
+    questionId: string;
+    surveyUpdatedAt: string;
+  }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions`,
+    jsonRequest("POST", { type, ...buildQuestionPatch(revision, question) }),
+  );
+
+export const replaceQuestion = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+  question: EditableQuestion,
+) =>
+  apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}`,
+    jsonPatch(buildQuestionPatch(revision, question)),
+  );
+
+export const deleteQuestion = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+) =>
+  apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}`,
+    jsonRequest("DELETE", { revision }),
+  );
+
+export const reorderQuestions = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+  questionIds: string[],
+) =>
+  apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/question-order`,
+    jsonRequest("PUT", { revision, questionIds }),
   );
 
 const prefix = (surveyId: string, versionId: string) =>

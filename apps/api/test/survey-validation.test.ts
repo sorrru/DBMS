@@ -20,6 +20,21 @@ describe("survey validation", () => {
       expect(() => validateCreateSurvey({ internalName })).toThrow();
     },
   );
+  it("normalizes NFC, rejects bidi controls and preserves ZWJ emoji", () => {
+    expect(
+      validateCreateSurvey({ internalName: " e\u0301 " }).internalName,
+    ).toBe("é");
+    expect(() =>
+      validateCreateSurvey({ internalName: "危险\u202e名称" }),
+    ).toThrow();
+    expect(
+      validateCreateSurvey({ internalName: "家庭👨‍👩‍👧" }).internalName,
+    ).toContain("‍");
+    expect(
+      validateDraftPatch({ revision: 1, description: "第一行\r\n第二行" })
+        .changes.description,
+    ).toBe("第一行\n第二行");
+  });
   it("requires revision, rejects unknown fields and distinguishes null deadline", () => {
     expect(() => validateDraftPatch({ title: "标题" })).toThrow();
     expect(() => validateDraftPatch({ revision: 1, ownerId: "x" })).toThrow();

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import mongoose, { Types, type ClientSession } from "mongoose";
 import type { AppEnv } from "../config/env.js";
-import { ApiError } from "../errors/api-error.js";
+import { ApiError, validationError } from "../errors/api-error.js";
 import { SurveyModel, type Survey } from "../models/survey.js";
 import {
   SurveyVersionModel,
@@ -9,6 +9,12 @@ import {
 } from "../models/survey-version.js";
 import type { SurveyCursorService } from "./cursor.js";
 import type { DraftChanges } from "./validation.js";
+import {
+  normalizeQuestion,
+  type RawCreateQuestion,
+  type RawReplaceQuestion,
+  type SurveyQuestion,
+} from "./questions.js";
 
 interface VersionSummary {
   id: string;
@@ -39,7 +45,7 @@ export interface PublicVersion {
   allowMultipleSubmissions: boolean;
   deadline: string | null;
   sessionDurationMinutes: number;
-  questions: unknown[];
+  questions: SurveyQuestion[];
   schemaVersion: number;
   createdAt: string;
   updatedAt: string;
@@ -252,6 +258,192 @@ export class SurveyService {
         updated = (await SurveyVersionModel.findOneAndUpdate(
           { _id: versionId, surveyId, status: "draft", revision },
           { $set: { ...changes, updatedAt: now }, $inc: { revision: 1 } },
+          { returnDocument: "after", session, timestamps: false },
+        )
+          .lean()
+          .exec()) as LeanVersion | null;
+        if (!updated) throw new ConditionalUpdateFailed();
+        const result = await SurveyModel.updateOne(
+          { _id: surveyId, ownerId },
+          { $set: { updatedAt: now } },
+          { session, timestamps: false },
+        );
+        if (result.matchedCount !== 1) throw new ConditionalUpdateFailed();
+      });
+    } catch (error) {
+      if (error instanceof ConditionalUpdateFailed)
+        await this.diagnosePatch(ownerId, surveyId, versionId);
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+    if (!updated) throw new ApiError(500, "INTERNAL_ERROR", "服务器内部错误");
+    return {
+      version: publicVersion(updated),
+      surveyUpdatedAt: now.toISOString(),
+    };
+  }
+
+  async addQuestion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    input: RawCreateQuestion,
+  ): Promise<{
+    version: PublicVersion;
+    questionId: string;
+    surveyUpdatedAt: string;
+  }> {
+    let questionId = "";
+    const result = await this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      input.revision,
+      undefined,
+      (questions) => {
+        if (questions.length >= 100)
+          throw new ApiError(
+            409,
+            "QUESTION_LIMIT_REACHED",
+            "草稿已经达到 100 道题上限",
+          );
+        const question = normalizeQuestion(
+          input.type,
+          input,
+          undefined,
+          questions,
+        );
+        questionId = question.questionId;
+        return [...questions, question];
+      },
+    );
+    return { ...result, questionId };
+  }
+
+  replaceQuestion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    questionId: string,
+    input: RawReplaceQuestion,
+  ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
+    return this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      input.revision,
+      questionId,
+      (questions, index) => {
+        const current = questions[index!];
+        const replacement = normalizeQuestion(
+          current!.type,
+          input,
+          current,
+          questions,
+        );
+        return questions.map((question, position) =>
+          position === index ? replacement : question,
+        );
+      },
+    );
+  }
+
+  deleteQuestion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    questionId: string,
+    revision: number,
+  ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
+    return this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      revision,
+      questionId,
+      (questions, index) =>
+        questions.filter((_question, position) => position !== index),
+    );
+  }
+
+  reorderQuestions(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    revision: number,
+    questionIds: string[],
+  ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
+    return this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      revision,
+      undefined,
+      (questions) => {
+        const unique = new Set(questionIds);
+        const byId = new Map(
+          questions.map((question) => [question.questionId, question]),
+        );
+        if (
+          unique.size !== questionIds.length ||
+          questionIds.length !== questions.length ||
+          questionIds.some((id) => !byId.has(id))
+        )
+          throw validationError(
+            "questionIds",
+            "排序必须包含全部且不重复的题目 ID",
+          );
+        return questionIds.map((id) => byId.get(id)!);
+      },
+    );
+  }
+
+  private async mutateQuestions(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    revision: number,
+    questionId: string | undefined,
+    mutation: (questions: SurveyQuestion[], index?: number) => SurveyQuestion[],
+  ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
+    await this.ensureIndexes();
+    const session = await mongoose.startSession();
+    const now = new Date();
+    let updated: LeanVersion | null = null;
+    try {
+      await session.withTransaction(async () => {
+        const survey = await SurveyModel.findOne({ _id: surveyId, ownerId })
+          .session(session)
+          .lean()
+          .exec();
+        if (!survey) throw new ConditionalUpdateFailed();
+        const version = (await SurveyVersionModel.findOne({
+          _id: versionId,
+          surveyId,
+        })
+          .session(session)
+          .lean()
+          .exec()) as LeanVersion | null;
+        if (!version) throw new ConditionalUpdateFailed();
+        if (version.status !== "draft")
+          throw new ApiError(409, "VERSION_NOT_EDITABLE", "目标版本不可编辑");
+        if (version.revision !== revision) throw new ConditionalUpdateFailed();
+        const questions = version.questions as SurveyQuestion[];
+        const index = questionId
+          ? questions.findIndex(
+              (question) => question.questionId === questionId,
+            )
+          : undefined;
+        if (questionId && index === -1)
+          throw new ApiError(404, "QUESTION_NOT_FOUND", "题目不存在");
+        const next = mutation(questions, index);
+        updated = (await SurveyVersionModel.findOneAndUpdate(
+          { _id: versionId, surveyId, status: "draft", revision },
+          {
+            $set: { questions: next, updatedAt: now },
+            $inc: { revision: 1 },
+          },
           { returnDocument: "after", session, timestamps: false },
         )
           .lean()

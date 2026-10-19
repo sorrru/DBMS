@@ -7,6 +7,11 @@ const valid = {
 };
 
 describe("loadEnv", () => {
+  it("uses the milestone 4 survey write defaults", () => {
+    const loaded = loadEnv(valid);
+    expect(loaded.surveyWriteRateLimit).toBe(120);
+    expect(loaded.surveyWriteRateWindowMs).toBe(60_000);
+  });
   it("rejects weak, example and identical secrets", () => {
     expect(() => loadEnv({ ...valid, JWT_SECRET: "short" })).toThrow(
       /JWT_SECRET/,

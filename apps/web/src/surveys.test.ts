@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   changedDraftFields,
+  buildQuestionPatch,
   clearSettingsDraft,
+  deleteQuestion,
   findSettingsDraft,
   saveSettingsDraft,
   type DraftFields,
@@ -39,5 +41,48 @@ describe("survey settings drafts", () => {
     expect(changedDraftFields(base, { ...base, title: "新标题" })).toEqual({
       title: "新标题",
     });
+  });
+});
+
+describe("question request whitelist", () => {
+  it("does not echo immutable response fields", () => {
+    const body = buildQuestionPatch(4, {
+      title: "问题",
+      required: true,
+      validation: { minLength: 0, maxLength: 20, digitsOnly: false },
+      options: [],
+    });
+    expect(body).toEqual({
+      revision: 4,
+      title: "问题",
+      required: true,
+      validation: { minLength: 0, maxLength: 20, digitsOnly: false },
+      options: [],
+    });
+    expect(body).not.toHaveProperty("type");
+    expect(body).not.toHaveProperty("questionId");
+    expect(body).not.toHaveProperty("jumpRules");
+  });
+
+  it("sends DELETE revision as a JSON request body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          version: { id: "v1" },
+          surveyUpdatedAt: "2026-10-18T00:00:00.000Z",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await deleteQuestion("s1", "v1", "q_first", 7);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/surveys/s1/versions/v1/questions/q_first",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revision: 7 }),
+      }),
+    );
   });
 });

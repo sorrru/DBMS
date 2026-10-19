@@ -1,4 +1,5 @@
 import { Schema, model, type Types } from "mongoose";
+import type { QuestionOption, SurveyQuestion } from "../surveys/questions.js";
 
 export interface SurveyVersion {
   surveyId: Types.ObjectId;
@@ -11,12 +12,37 @@ export interface SurveyVersion {
   allowMultipleSubmissions: boolean;
   deadline: Date | null;
   sessionDurationMinutes: number;
-  questions: unknown[];
+  questions: SurveyQuestion[];
   schemaVersion: number;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
 }
+
+const optionSchema = new Schema<QuestionOption>(
+  {
+    optionId: { type: String, required: true },
+    text: { type: String, required: true },
+  },
+  { _id: false, versionKey: false, minimize: false },
+);
+
+const questionSchema = new Schema<SurveyQuestion>(
+  {
+    questionId: { type: String, required: true },
+    type: {
+      type: String,
+      enum: ["single", "multiple", "text", "number"],
+      required: true,
+    },
+    title: { type: String, required: true },
+    required: { type: Boolean, required: true },
+    validation: { type: Schema.Types.Mixed, required: true },
+    options: { type: [optionSchema], required: true, default: [] },
+    jumpRules: { type: [Schema.Types.Mixed], required: true, default: [] },
+  },
+  { _id: false, versionKey: false, minimize: false },
+);
 
 const surveyVersionSchema = new Schema<SurveyVersion>(
   {
@@ -34,11 +60,16 @@ const surveyVersionSchema = new Schema<SurveyVersion>(
     allowMultipleSubmissions: { type: Boolean, required: true },
     deadline: { type: Date, default: null },
     sessionDurationMinutes: { type: Number, required: true },
-    questions: { type: [Schema.Types.Mixed], required: true, default: [] },
+    questions: { type: [questionSchema], required: true, default: [] },
     schemaVersion: { type: Number, required: true },
     publishedAt: { type: Date, default: null },
   },
-  { timestamps: true, versionKey: false, collection: "survey_versions" },
+  {
+    timestamps: true,
+    versionKey: false,
+    minimize: false,
+    collection: "survey_versions",
+  },
 );
 
 surveyVersionSchema.index({ surveyId: 1, versionNumber: 1 }, { unique: true });

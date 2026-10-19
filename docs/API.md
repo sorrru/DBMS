@@ -166,7 +166,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 版本设置和后续题目接口共享同一个版本 revision。前端页面只维护一个 revision 状态；任一设置或题目写请求进行中时，所有设置保存、题目保存、移动和删除按钮一起禁用，成功后统一采用响应中的新值。
 
-## 题目接口（里程碑 4 待复核候选设计，尚未实现）
+## 题目接口（里程碑 4 已实现并验收）
 
 题目嵌套在草稿版本的 `questions` 数组中，数组位置是唯一顺序，不返回 `order` 字段。通用结构为：
 
@@ -189,7 +189,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 所有题目写接口成功后均返回递增的版本 `revision`、刷新后的版本 `updatedAt` 和同步更新的 `surveyUpdatedAt`。前端必须采用响应中的新 revision，并串行发送后续保存、删除或移动请求。
 
-问卷写接口共享按用户限流。里程碑 4 候选设计值为每 60 秒 120 次，由 `SURVEY_WRITE_RATE_LIMIT=120` 和 `SURVEY_WRITE_RATE_WINDOW_MS=60000` 配置；超限返回 `429 RATE_LIMITED` 和 `Retry-After`。
+问卷写接口共享按用户限流，当前默认值为每 60 秒 120 次，由 `SURVEY_WRITE_RATE_LIMIT=120` 和 `SURVEY_WRITE_RATE_WINDOW_MS=60000` 配置；超限返回 `429 RATE_LIMITED` 和 `Retry-After`。
 
 ### `POST /api/surveys/:surveyId/versions/:versionId/questions`
 
@@ -313,4 +313,4 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号与问卷草稿接口已经实现并通过自动测试和人工验收。里程碑 4 的题目接口目前只有待人工复核的候选设计，尚未实现；发布、填写和统计也尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷主体和题目接口均已实现并通过自动测试和人工验收。跳转、发布、填写和统计尚未开始。

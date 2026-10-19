@@ -10,6 +10,8 @@ export type ErrorCode =
   | "VERSION_NOT_EDITABLE"
   | "DRAFT_CONFLICT"
   | "SURVEY_LIMIT_REACHED"
+  | "QUESTION_NOT_FOUND"
+  | "QUESTION_LIMIT_REACHED"
   | "PAYLOAD_TOO_LARGE"
   | "UNSUPPORTED_MEDIA_TYPE"
   | "RATE_LIMITED"
@@ -31,4 +33,9 @@ export const validationError = (
   field?: string,
   message = "请求参数不符合要求",
 ) =>
-  new ApiError(400, "VALIDATION_ERROR", message, field ? { field } : undefined);
+  new ApiError(
+    400,
+    "VALIDATION_ERROR",
+    message,
+    field ? { field, path: field } : undefined,
+  );

@@ -96,11 +96,11 @@ export function loadEnv(
     loginWindowMs: integer(source, "LOGIN_RATE_WINDOW_MS", 900_000),
     rateLimitMaxKeys: integer(source, "RATE_LIMIT_MAX_KEYS", 10_000),
     surveyMaxPerUser: integer(source, "SURVEY_MAX_PER_USER", 100),
-    surveyWriteRateLimit: integer(source, "SURVEY_WRITE_RATE_LIMIT", 60),
+    surveyWriteRateLimit: integer(source, "SURVEY_WRITE_RATE_LIMIT", 120),
     surveyWriteRateWindowMs: integer(
       source,
       "SURVEY_WRITE_RATE_WINDOW_MS",
-      900_000,
+      60_000,
     ),
   });
 }

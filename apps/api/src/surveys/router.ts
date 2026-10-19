@@ -4,6 +4,13 @@ import { requireCurrentUser } from "../auth/current-user.js";
 import type { AuthDependencies } from "../auth/router.js";
 import { validationError } from "../errors/api-error.js";
 import { SurveyCursorService } from "./cursor.js";
+import {
+  parseCreateQuestion,
+  parseQuestionOrder,
+  parseReplaceQuestion,
+  parseRevision,
+  validQuestionId,
+} from "./questions.js";
 import { SurveyService } from "./service.js";
 import {
   validateCreateSurvey,
@@ -87,5 +94,77 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
       ),
     );
   });
+  router.post(
+    "/:surveyId/versions/:versionId/questions",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const input = parseCreateQuestion(request.body);
+      consumeWrite(user._id.toString());
+      response
+        .status(201)
+        .json(await service.addQuestion(user._id, surveyId, versionId, input));
+    },
+  );
+  router.patch(
+    "/:surveyId/versions/:versionId/questions/:questionId",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const questionId = validQuestionId(request.params.questionId!);
+      const input = parseReplaceQuestion(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.replaceQuestion(
+          user._id,
+          surveyId,
+          versionId,
+          questionId,
+          input,
+        ),
+      );
+    },
+  );
+  router.delete(
+    "/:surveyId/versions/:versionId/questions/:questionId",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const questionId = validQuestionId(request.params.questionId!);
+      const revision = parseRevision(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.deleteQuestion(
+          user._id,
+          surveyId,
+          versionId,
+          questionId,
+          revision,
+        ),
+      );
+    },
+  );
+  router.put(
+    "/:surveyId/versions/:versionId/question-order",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const input = parseQuestionOrder(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.reorderQuestions(
+          user._id,
+          surveyId,
+          versionId,
+          input.revision,
+          input.questionIds,
+        ),
+      );
+    },
+  );
   return router;
 }
