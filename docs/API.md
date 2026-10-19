@@ -185,7 +185,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 }
 ```
 
-每个版本最多 100 道题。里程碑 4 中 `jumpRules` 始终为空且所有写请求都拒绝该字段。`questionId` 必须匹配 `^q_[A-Za-z0-9_-]+$`：格式错误返回 `VALIDATION_ERROR`，格式正确但不存在返回 `QUESTION_NOT_FOUND`。
+每个版本最多 100 道题。普通题目创建和修改请求始终拒绝 `jumpRules` 字段；里程碑 5 使用独立规则接口管理它，题目修改必须保留已经存在的规则。`questionId` 必须匹配 `^q_[A-Za-z0-9_-]+$`：格式错误返回 `VALIDATION_ERROR`，格式正确但不存在返回 `QUESTION_NOT_FOUND`。
 
 所有题目写接口成功后均返回递增的版本 `revision`、刷新后的版本 `updatedAt` 和同步更新的 `surveyUpdatedAt`。前端必须采用响应中的新 revision，并串行发送后续保存、删除或移动请求。
 
@@ -250,7 +250,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 { "revision": 5 }
 ```
 
-缺少或错误类型的 revision 返回 `VALIDATION_ERROR`。成功返回 `200`、完整 `{ version, surveyUpdatedAt }`。实现验收必须确认 Vite `/api` 代理不会丢弃 DELETE 的 JSON 请求体；若实测丢失，统一改为 `?revision=5` 查询参数，不同时支持两种传法。
+缺少或错误类型的 revision 返回 `VALIDATION_ERROR`。成功返回 `200`、完整 `{ version, surveyUpdatedAt }`。里程碑 4 人工验收已经确认 Vite `/api` 代理不会丢弃该 JSON 请求体。
 
 ### `PUT /api/surveys/:surveyId/versions/:versionId/question-order`
 
@@ -289,6 +289,100 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 第 1 步只判断 JSON 形态、字段白名单、必填字段、原始类型和 ID 格式；长度、选项归属、完整排序集合及跨字段约束属于后续业务规则。业务规则没有专用错误码时仍返回 `400 VALIDATION_ERROR`。字段错误使用稳定的 `details.path`，例如 `validation.maxSelections`、`options[2].text` 或 `questionIds[3]`，前端据此显示就近错误。
 
+## 跳转规则与发布检查（里程碑 5 待复核设计）
+
+规则使用扁平结构：
+
+```json
+{
+  "ruleId": "r_URL安全随机值",
+  "operator": "containsAny",
+  "value": ["o_lecture", "o_lab"],
+  "targetQuestionId": "q_follow_up"
+}
+```
+
+支持的操作符为：单选 `equals`；多选 `contains`、`containsAll`、`containsAny`；数字 `equals`、`gt`、`gte`、`lt`、`lte`；文本题不支持规则。未回答时任何规则都不匹配并走默认下一题。路由只接受 `validateAnswer` 的规范答案形态，数字字符串、外来选项或重复多选值等非规范输入按未回答路由，之后仍由答案校验拒绝。数组型规则值非空、无重复且不超过选项数，服务端存储时按来源题选项顺序规范化。数字使用 JSON 数值精确比较，`-0` 规范化为 `0`。规则不依赖数字题的上下界或整数限制。
+
+### `PUT /api/surveys/:surveyId/versions/:versionId/questions/:questionId/jump-rules`
+
+完整替换一道来源题的规则数组：
+
+```json
+{
+  "revision": 8,
+  "rules": [
+    {
+      "operator": "equals",
+      "value": "o_yes",
+      "targetQuestionId": "q_follow_up"
+    }
+  ]
+}
+```
+
+已有规则携带原 `ruleId`，新规则不得自带 ID。每题默认最多 20 条规则，由 `JUMP_RULE_MAX_PER_QUESTION` 配置；启动时必须是 1–100 的整数，否则 API 拒绝启动。超限返回 `VALIDATION_ERROR`。成功返回完整 `{ version, surveyUpdatedAt }` 并使 revision 加一。
+
+接口沿用题目写入的六步错误顺序。来源题不存在返回 `QUESTION_NOT_FOUND`；目标题不存在、目标题格式错误、自跳转、条件选项不属于来源题均返回 `VALIDATION_ERROR`，路径分别指向 `rules[i].targetQuestionId` 或 `rules[i].value`。指向更靠前题目的规则和不可达状态可以保存在草稿中，发布检查再判断真实循环。
+
+加入规则后，题目 PATCH 删除被条件引用的选项时返回 `OPTION_REFERENCED`；题目 DELETE 删除被其他规则指向的题目时返回 `QUESTION_REFERENCED`。两者属于第 6 步业务规则，`details.references` 是 `{ questionId, ruleId }[]`。普通题目 PATCH 仍拒绝请求中的 `jumpRules`，但必须在服务端保留现有规则。
+
+### `POST /api/surveys/:surveyId/versions/:versionId/validate`
+
+请求固定为：
+
+```json
+{ "revision": 9 }
+```
+
+只允许检查草稿；发布版本返回 `VERSION_NOT_EDITABLE`，过期 revision 返回 `DRAFT_CONFLICT`。检查不修改版本、问卷、时间或 revision。只要请求本身有效，始终返回 HTTP 200：
+
+```json
+{
+  "revision": 9,
+  "valid": false,
+  "errors": [
+    {
+      "code": "JUMP_CYCLE",
+      "path": "questions[2].jumpRules[0]",
+      "message": "该规则指向更靠前的题目并形成循环",
+      "questionId": "q_3",
+      "ruleId": "r_back",
+      "questionIds": ["q_3", "q_1", "q_3"]
+    }
+  ],
+  "warnings": [
+    {
+      "code": "QUESTION_UNREACHABLE",
+      "path": "questions[1]",
+      "message": "该题无法从第一题到达",
+      "questionId": "q_2"
+    }
+  ]
+}
+```
+
+`valid` 等于 `errors.length === 0`。默认边只在可能没有规则命中时存在：必答单选题的规则覆盖全部选项时不画默认边；非必答单选、多选、数字及未覆盖全部选项的单选保守地保留默认边。
+
+循环报告不依赖 DFS 遍历顺序。对每条从可达来源题指向更靠前题目的规则，如果目标题在精确图中能回到来源题，就为该规则单独返回一个 `JUMP_CYCLE`，`questionIds` 是经过该规则的最短回路。错误和警告按题目顺序、规则顺序稳定排序。
+
+发布检查还防御性复核目标题、选项归属、题目/选项/规则 ID 全局唯一，以及题数和选项数上限。结构损坏、循环、空问卷和已经过去的截止时间阻止发布；不可达题目和被相同条件遮蔽的后续规则只警告。里程碑 6 的发布事务必须用同一个共享函数重新检查。
+
+响应 `revision` 表示实际检查的草稿。题目相关结果始终包含 `questionId`，规则相关结果还包含 `ruleId`；`DEADLINE_PASSED.path` 固定为 `deadline`。任何写入成功后，前端清除或置灰旧检查结果。`SHADOWED_RULE` 指向被遮蔽规则，并在消息中标出遮蔽它的规则位置。
+
+检查结果代码与非 2xx API 错误码分开：
+
+| 类别 | 代码                   | 含义                   |
+| ---- | ---------------------- | ---------------------- |
+| 阻止 | `INVALID_STRUCTURE`    | 内部结构或稳定 ID 损坏 |
+| 阻止 | `EMPTY_SURVEY`         | 问卷没有题目           |
+| 阻止 | `JUMP_CYCLE`           | 精确跳转图存在循环     |
+| 阻止 | `DEADLINE_PASSED`      | 截止时间已经过去       |
+| 警告 | `QUESTION_UNREACHABLE` | 题目无法从第一题到达   |
+| 警告 | `SHADOWED_RULE`        | 前面的相同条件会先命中 |
+
+完整图模型、共享函数和测试边界见 `JUMP_DESIGN.md`。
+
 ## 稳定错误码
 
 | HTTP | 错误码                   | 含义                                                       |
@@ -306,6 +400,8 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 |  409 | `DRAFT_CONFLICT`         | 草稿 revision 已变化；`details.currentRevision` 返回当前值 |
 |  409 | `SURVEY_LIMIT_REACHED`   | 当前用户已达到可创建的问卷数量上限                         |
 |  409 | `QUESTION_LIMIT_REACHED` | 草稿已经达到 100 道题上限                                  |
+|  409 | `QUESTION_REFERENCED`    | 题目仍被其他跳转规则作为目标引用                           |
+|  409 | `OPTION_REFERENCED`      | 选项仍被来源题的跳转条件引用                               |
 |  413 | `PAYLOAD_TOO_LARGE`      | JSON 请求体超过 256 KiB                                    |
 |  415 | `UNSUPPORTED_MEDIA_TYPE` | 带请求体的接口未使用 `application/json`                    |
 |  429 | `RATE_LIMITED`           | 请求超过限流；响应含 `Retry-After`                         |

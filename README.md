@@ -23,6 +23,8 @@ Node.js 由 `.nvmrc` 和根目录 `package.json` 的 `engines` 精确固定为 2
 apps/
 ├── api/               Express 5 TypeScript 后端
 └── web/               Vue 3 TypeScript 前端
+packages/
+└── survey-logic/      里程碑 5 计划新增的前后端共享纯 TypeScript 规则逻辑
 docker/                MongoDB 副本集初始化脚本
 docs/                  已确认的需求和系统设计
 TODO.md                分阶段开发清单
@@ -79,6 +81,8 @@ npm run dev
 - 后端健康检查：`http://localhost:3000/api/health`
 
 前端每 10 秒检查一次 API 和 MongoDB 状态。
+
+里程碑 5 将加入 `packages/survey-logic`。实现时根构建会显式按“共享包 → API → Web”执行；开发命令会先构建共享包，再同时监视共享包、API 和 Vite。落地后必须从全新 `npm ci` 状态重新验证本节第 4、5 步，确保生产构建只消费共享包的 `dist`、开发模式能随共享源码变化更新。
 
 ### 可选：创建本地演示数据
 
@@ -160,9 +164,10 @@ MongoDB 已连接时：
 | `SURVEY_MAX_PER_USER`         | `100`                                                                          | 每个用户可创建的问卷数量上限                                     |
 | `SURVEY_WRITE_RATE_LIMIT`     | `120`                                                                          | 单用户在问卷写入窗口内的请求上限                                 |
 | `SURVEY_WRITE_RATE_WINDOW_MS` | `60000`                                                                        | 问卷写接口限流窗口毫秒数                                         |
+| `JUMP_RULE_MAX_PER_QUESTION`  | `20`                                                                           | 里程碑 5 计划的每题规则上限；实现后要求为 1–100 的整数           |
 | `SEED_USER_PASSWORD`          | 留空                                                                           | 本地种子账号密码；运行脚本前填写且必须满足正式密码规则           |
 
-`.env.example` 已包含上述可用的 `MONGODB_URI`。`directConnection=true` 可避免驱动通过副本集拓扑发现改连到容器内部不可解析的地址；部署为多节点副本集时应移除此参数并提供所有可达节点。
+`.env.example` 已包含可用的 `MONGODB_URI` 和里程碑 5 计划使用的 `JUMP_RULE_MAX_PER_QUESTION`；后者会在里程碑 5 实现时启用 1–100 整数的启动校验。`directConnection=true` 可避免驱动通过副本集拓扑发现改连到容器内部不可解析的地址；部署为多节点副本集时应移除此参数并提供所有可达节点。
 
 浏览器地址栏必须使用 `http://localhost:5173`，与默认 `WEB_ORIGIN` 完全一致。使用 `http://127.0.0.1:5173` 会被认证接口的 Origin 校验拒绝。Vite 已把同源相对路径 `/api` 代理到后端。开发代理会让后端看到代理来源 IP；生产环境不能盲目把 `trust proxy` 设为 `true`。
 
@@ -184,6 +189,7 @@ MongoDB 已连接时：
 - [用户账号与身份认证设计](docs/AUTH_DESIGN.md)
 - [问卷主体与 v1 草稿设计](docs/SURVEY_DRAFT_DESIGN.md)
 - [题目与校验规则设计](docs/QUESTION_DESIGN.md)
+- [跳转规则与发布检查设计](docs/JUMP_DESIGN.md)
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 

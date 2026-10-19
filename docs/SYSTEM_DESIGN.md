@@ -63,6 +63,8 @@ MongoDB
 
 前端只负责交互，后端负责最终可信判断。后端不能信任客户端传入的用户身份、问卷版本、答题路径或校验结果。
 
+里程碑 5 新增无框架依赖的 `packages/survey-logic` workspace，集中保存规范问卷类型、答案校验、跳转执行、路径计算和发布检查。Vue 与 Express 共同引用该包，避免前后端各自实现一套可能分叉的规则语义；数据库访问、HTTP 和界面状态不进入共享包。共享包按现有 ESM 风格编译到带类型声明的 `dist`，生产构建显式先构建共享包，开发模式先构建一次再同时监视共享包、API 和前端。
+
 ## MongoDB 集合设计
 
 ### users
@@ -207,7 +209,7 @@ survey_version
 
 `questions` 数组位置是唯一顺序，不另存 `order`。同一道逻辑题从旧版本复制到新版本时保留 `questionId`。调整顺序不会修改 ID，但会改变没有跳转规则时的默认下一题；新题生成新 ID；删除只影响新版本。选项同样使用稳定 `optionId`，固定结构为 `{ optionId, text }`。
 
-每个版本最多 100 道题。题型创建后不可直接修改；题目修改接口完整替换标题、必答设置、校验和选项，不局部合并。`validation` 请求字段必填但可为空对象，服务端补齐所有缺省字段后再存储，保证发布版本不依赖未来代码中的默认值。里程碑 4 不接受跳转规则，`jumpRules` 固定为 `[]`。完整字段、默认值、答案形态、并发更新与错误顺序见 `QUESTION_DESIGN.md`。
+每个版本最多 100 道题。题型创建后不可直接修改；题目修改接口完整替换标题、必答设置、校验和选项，不局部合并。`validation` 请求字段必填但可为空对象，服务端补齐所有缺省字段后再存储，保证发布版本不依赖未来代码中的默认值。题目接口不接受客户端回传 `jumpRules`；里程碑 5 使用独立接口整组保存规则，普通题目修改必须保留已有规则。完整字段、默认值、答案形态、并发更新与错误顺序见 `QUESTION_DESIGN.md`。
 
 题目标题与选项先做 NFC 规范化，再 trim、按 Unicode 码点计数和比较；拒绝 `Cc` 类及双向控制符，但保留 ZWJ。前端对整个版本只维护一份 revision，设置保存与题目写入共同串行化。
 
@@ -231,16 +233,14 @@ survey_version
 
 ```json
 {
-  "ruleId": "r1",
-  "condition": {
-    "operator": "equals",
-    "value": "option_a"
-  },
-  "targetQuestionId": "q5"
+  "ruleId": "r_URL安全随机值",
+  "operator": "equals",
+  "value": "o_option_a",
+  "targetQuestionId": "q_target"
 }
 ```
 
-规则顺序就是优先级。后端从上到下检查，第一条满足的规则生效；没有规则满足则进入下一题。
+规则采用扁平结构，顺序就是优先级。后端从上到下检查，第一条满足的规则生效；没有规则满足则进入下一题。未回答时所有规则均不匹配。每题默认最多 20 条规则，通过环境变量配置。
 
 | 题型 | 支持的操作符                             |
 | ---- | ---------------------------------------- |
@@ -249,7 +249,7 @@ survey_version
 | 数字 | `equals`、`gt`、`gte`、`lt`、`lte`       |
 | 文本 | 第一阶段不支持跳转                       |
 
-发布前必须检查目标存在、操作符适用、选项有效和跳转无环。不可到达题目产生警告，但循环阻止发布。
+规则保存时检查目标存在、拒绝自跳转、检查操作符适用和选项归属；指向更靠前题目的规则与不可达状态允许暂存在草稿中。发布前检查使用精确图：必答单选且规则覆盖全部选项时不画默认边，其他题型保守保留默认边。对每条可达来源且指向更靠前题目的规则，若目标题能回到来源题，则按该规则和最短回路稳定报告循环，不依赖 DFS 遍历顺序。发布前还防御性复核结构与稳定 ID。结构损坏、循环、空问卷和已过截止时间阻止发布；不可达题目和重复条件产生警告。共享路径计算、引用保护、接口和图算法见 `JUMP_DESIGN.md`。
 
 ## 答题路径与校验
 
@@ -336,18 +336,19 @@ v1 保留历史回答与统计
 
 ### 版本管理
 
-| 方法   | 路径                                                               | 作用             |
-| ------ | ------------------------------------------------------------------ | ---------------- |
-| GET    | `/api/surveys/:surveyId/versions`                                  | 版本列表         |
-| POST   | `/api/surveys/:surveyId/versions/draft`                            | 创建下一版本草稿 |
-| GET    | `/api/surveys/:surveyId/versions/:versionId`                       | 查看版本         |
-| PATCH  | `/api/surveys/:surveyId/versions/:versionId`                       | 修改草稿设置     |
-| POST   | `/api/surveys/:surveyId/versions/:versionId/questions`             | 添加题目         |
-| PATCH  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 修改题目         |
-| DELETE | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId` | 删除草稿题目     |
-| PUT    | `/api/surveys/:surveyId/versions/:versionId/question-order`        | 完整重排题目     |
-| POST   | `/api/surveys/:surveyId/versions/:versionId/validate`              | 发布前检查       |
-| POST   | `/api/surveys/:surveyId/versions/:versionId/publish`               | 发布版本         |
+| 方法   | 路径                                                                          | 作用                     |
+| ------ | ----------------------------------------------------------------------------- | ------------------------ |
+| GET    | `/api/surveys/:surveyId/versions`                                             | 版本列表                 |
+| POST   | `/api/surveys/:surveyId/versions/draft`                                       | 创建下一版本草稿         |
+| GET    | `/api/surveys/:surveyId/versions/:versionId`                                  | 查看版本                 |
+| PATCH  | `/api/surveys/:surveyId/versions/:versionId`                                  | 修改草稿设置             |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/questions`                        | 添加题目                 |
+| PATCH  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId`            | 修改题目                 |
+| DELETE | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId`            | 删除草稿题目             |
+| PUT    | `/api/surveys/:surveyId/versions/:versionId/question-order`                   | 完整重排题目             |
+| PUT    | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId/jump-rules` | 完整替换一道题的跳转规则 |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/validate`                         | 发布前检查               |
+| POST   | `/api/surveys/:surveyId/versions/:versionId/publish`                          | 发布版本                 |
 
 ### 填写
 
@@ -374,8 +375,10 @@ v1 保留历史回答与统计
 |  409 | `DRAFT_CONFLICT`         | 客户端 revision 过期；details 返回当前 revision |
 |  409 | `SURVEY_LIMIT_REACHED`   | 当前用户达到可配置的问卷数量上限                |
 |  409 | `QUESTION_LIMIT_REACHED` | 目标版本已经达到 100 道题上限                   |
+|  409 | `QUESTION_REFERENCED`    | 题目仍被其他跳转规则引用                        |
+|  409 | `OPTION_REFERENCED`      | 选项仍被本题跳转规则引用                        |
 
-所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`。
+所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`。
 
 ## 前端范围
 

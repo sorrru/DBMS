@@ -43,7 +43,7 @@ Mongoose 的题目、选项、校验和跳转子文档均关闭自动 `_id`。�
 - 同一道题内，选项文字先做 NFC 规范化和 trim 再比较；比较区分大小写，完全相同才视为重复。
 - 选项固定为 `{ optionId, text }`，不接受其他字段。
 - 修改请求中的 `optionId` 不得重复。服务端生成新 optionId 时与同一版本已有选项 ID 比对；若发生内存碰撞则重新生成，数据库不承担嵌套选项 ID 的唯一性判断。
-- 里程碑 4 的 `jumpRules` 永远是空数组。创建、修改请求只要携带 `jumpRules` 字段就返回 `VALIDATION_ERROR`，不能静默忽略。
+- 里程碑 4 创建的 `jumpRules` 是空数组。普通题目创建、修改请求始终拒绝该字段，不能静默忽略；里程碑 5 通过独立规则接口管理数组，并要求普通题目修改保留已有规则。
 
 ## 各题型定义规则
 
@@ -97,7 +97,7 @@ Mongoose 的题目、选项、校验和跳转子文档均关闭自动 `_id`。�
 实现分成两类纯校验：
 
 1. 题目定义校验检查题型配置本身是否合法，例如选项数量、重复选项、`minSelections ≤ maxSelections` 和数字上下界。
-2. `validateAnswer(question, value)` 检查一个回答是否满足已经合法且规范化的题目定义。它返回带判别字段的结果，而不是布尔值：有效回答为 `{ ok: true, value: 规范值, answered: true }`；非必答且未回答为 `{ ok: true, value: null, answered: false }`；失败为 `{ ok: false, path, reason }`。规范值包括 trim 后的文本和已把 `-0` 转成 `0` 的数字。该纯函数在里程碑 4 完成并测试，里程碑 7 和 8 直接复用，不得另写一套答案规范化。
+2. `validateAnswer(question, value)` 检查一个回答是否满足已经合法且规范化的题目定义。它返回带判别字段的结果，而不是布尔值：有效回答为 `{ ok: true, value: 规范值, answered: true }`；非必答且未回答为 `{ ok: true, value: null, answered: false }`；失败为 `{ ok: false, path, reason }`。规范值包括 trim 后的文本和已把 `-0` 转成 `0` 的数字。该纯函数在里程碑 4 完成并测试；最终唯一实现位置固定为无框架依赖的 `packages/survey-logic`，里程碑 5 建立共享工作区时原样提取现有实现，之后前端、里程碑 7 和里程碑 8 直接复用，不得保留或另写第二套答案规范化。
 
 统一的答案形态和“未回答”定义如下：
 
