@@ -19,6 +19,12 @@ function exactKeys(
   if (unknown) throw validationError(unknown, "请求包含不允许的字段");
 }
 
+function positiveInteger(value: unknown, field: string): number {
+  if (!Number.isInteger(value) || (value as number) < 1)
+    throw validationError(field);
+  return value as number;
+}
+
 function text(
   value: unknown,
   field: string,
@@ -150,4 +156,38 @@ export function validateListQuery(
     limit,
     ...(cursorValue === undefined ? {} : { cursor: cursorValue as string }),
   };
+}
+
+export function validatePublish(body: unknown): {
+  revision: number;
+  acknowledgeWarnings: boolean;
+} {
+  const value = objectBody(body);
+  exactKeys(value, new Set(["revision", "acknowledgeWarnings"]));
+  if (typeof value.acknowledgeWarnings !== "boolean")
+    throw validationError("acknowledgeWarnings");
+  return {
+    revision: positiveInteger(value.revision, "revision"),
+    acknowledgeWarnings: value.acknowledgeWarnings,
+  };
+}
+
+export function validateCreateVersion(body: unknown): {
+  sourceVersionId: string;
+} {
+  const value = objectBody(body);
+  exactKeys(value, new Set(["sourceVersionId"]));
+  if (typeof value.sourceVersionId !== "string")
+    throw validationError("sourceVersionId");
+  return { sourceVersionId: value.sourceVersionId };
+}
+
+export function validateStatusPatch(body: unknown): {
+  manualStatus: "open" | "closed";
+} {
+  const value = objectBody(body);
+  exactKeys(value, new Set(["manualStatus"]));
+  if (value.manualStatus !== "open" && value.manualStatus !== "closed")
+    throw validationError("manualStatus");
+  return { manualStatus: value.manualStatus };
 }

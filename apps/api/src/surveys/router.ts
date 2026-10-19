@@ -15,9 +15,12 @@ import {
 import { SurveyService } from "./service.js";
 import {
   validateCreateSurvey,
+  validateCreateVersion,
   validateDraftPatch,
   validateListQuery,
+  validatePublish,
   validateRenameSurvey,
+  validateStatusPatch,
 } from "./validation.js";
 
 function validId(value: string, field: string): string {
@@ -69,6 +72,35 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
       survey: await service.rename(user._id, surveyId, input.internalName),
     });
   });
+  router.patch("/:surveyId/status", async (request, response) => {
+    const user = await requireCurrentUser(request, deps.tokens);
+    const surveyId = validId(request.params.surveyId!, "surveyId");
+    const input = validateStatusPatch(request.body);
+    consumeWrite(user._id.toString());
+    response.json({
+      survey: await service.setStatus(user._id, surveyId, input.manualStatus),
+    });
+  });
+  router.get("/:surveyId/versions", async (request, response) => {
+    const user = await requireCurrentUser(request, deps.tokens);
+    const surveyId = validId(request.params.surveyId!, "surveyId");
+    const query = validateListQuery(request.query.limit, request.query.cursor);
+    response.json(
+      await service.listVersions(user._id, surveyId, query.limit, query.cursor),
+    );
+  });
+  router.post("/:surveyId/versions", async (request, response) => {
+    const user = await requireCurrentUser(request, deps.tokens);
+    const surveyId = validId(request.params.surveyId!, "surveyId");
+    const input = validateCreateVersion(request.body);
+    const sourceVersionId = validId(input.sourceVersionId, "sourceVersionId");
+    consumeWrite(user._id.toString());
+    response
+      .status(201)
+      .json(
+        await service.createNextVersion(user._id, surveyId, sourceVersionId),
+      );
+  });
   router.get("/:surveyId/versions/:versionId", async (request, response) => {
     const user = await requireCurrentUser(request, deps.tokens);
     response.json({
@@ -78,6 +110,16 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
         validId(request.params.versionId!, "versionId"),
       ),
     });
+  });
+  router.delete("/:surveyId/versions/:versionId", async (request, response) => {
+    const user = await requireCurrentUser(request, deps.tokens);
+    const surveyId = validId(request.params.surveyId!, "surveyId");
+    const versionId = validId(request.params.versionId!, "versionId");
+    const revision = parseRevision(request.body);
+    consumeWrite(user._id.toString());
+    response.json(
+      await service.discardDraft(user._id, surveyId, versionId, revision),
+    );
   });
   router.patch("/:surveyId/versions/:versionId", async (request, response) => {
     const user = await requireCurrentUser(request, deps.tokens);
@@ -197,6 +239,25 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
       const revision = parseRevision(request.body);
       response.json(
         await service.validateDraft(user._id, surveyId, versionId, revision),
+      );
+    },
+  );
+  router.post(
+    "/:surveyId/versions/:versionId/publish",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const input = validatePublish(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.publish(
+          user._id,
+          surveyId,
+          versionId,
+          input.revision,
+          input.acknowledgeWarnings,
+        ),
       );
     },
   );

@@ -386,7 +386,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 完整图模型、共享函数和测试边界见 `JUMP_DESIGN.md`。
 
-## 版本发布与生命周期（里程碑 6 待复核设计）
+## 版本发布与生命周期（里程碑 6 已实现）
 
 ### `POST /api/surveys/:surveyId/versions/:versionId/publish`
 

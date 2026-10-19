@@ -1,11 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeSurveyStatus,
   computePath,
   evaluateNextQuestion,
   validateAnswer,
   validateForPublish,
   type SurveyQuestion,
 } from "./index.js";
+
+describe("survey status", () => {
+  const published = { currentVersionId: "v1", manualStatus: "open" as const };
+
+  it("applies draft, closed, expired and published precedence", () => {
+    const now = new Date("2027-01-01T00:00:00.000Z");
+    expect(
+      computeSurveyStatus(
+        { currentVersionId: null, manualStatus: "open" },
+        null,
+        now,
+      ),
+    ).toBe("draft");
+    expect(
+      computeSurveyStatus(
+        { ...published, manualStatus: "closed" },
+        { deadline: "2026-01-01T00:00:00.000Z" },
+        now,
+      ),
+    ).toBe("closed");
+    expect(
+      computeSurveyStatus(
+        published,
+        { deadline: "2027-01-01T00:00:00.000Z" },
+        now,
+      ),
+    ).toBe("expired");
+    expect(computeSurveyStatus(published, { deadline: null }, now)).toBe(
+      "published",
+    );
+  });
+});
 
 const option = (optionId: string) => ({ optionId, text: optionId });
 const single = (

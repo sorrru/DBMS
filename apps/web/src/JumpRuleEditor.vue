@@ -24,6 +24,7 @@ const emit = defineEmits<{
   busy: [value: boolean];
   dirty: [value: boolean];
   failure: [error: unknown];
+  checked: [check: PublishCheck | undefined];
 }>();
 
 const drafts = reactive<Record<string, EditableJumpRule[]>>({});
@@ -62,8 +63,10 @@ watch(
         delete errors[id];
       }
     }
-    if (previous && previous.revision !== version.revision)
+    if (previous && previous.revision !== version.revision) {
       check.value = undefined;
+      emit("checked", undefined);
+    }
   },
   { immediate: true },
 );
@@ -189,6 +192,7 @@ async function runCheck(): Promise<void> {
       props.version.id,
       props.version.revision,
     );
+    emit("checked", check.value);
   } catch (error) {
     emit("failure", error);
   } finally {

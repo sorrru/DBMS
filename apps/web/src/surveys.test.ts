@@ -5,6 +5,7 @@ import {
   clearSettingsDraft,
   deleteQuestion,
   findSettingsDraft,
+  publishVersion,
   saveSettingsDraft,
   updateJumpRules,
   validateDraftForPublish,
@@ -137,6 +138,28 @@ describe("question request whitelist", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ revision: 8 }),
+      }),
+    );
+  });
+
+  it("requires an explicit warning acknowledgement when publishing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          survey: { id: "s1" },
+          version: { id: "v1" },
+          check: { revision: 8, valid: true, errors: [], warnings: [] },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await publishVersion("s1", "v1", 8, false);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/surveys/s1/versions/v1/publish",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ revision: 8, acknowledgeWarnings: false }),
       }),
     );
   });

@@ -186,6 +186,78 @@ select {
   gap: 1rem;
 }
 
+.editor-layout {
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.editor-content {
+  min-width: 0;
+}
+
+.editor-nav {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  max-height: calc(100vh - 2rem);
+  gap: 0.35rem;
+  overflow-y: auto;
+  border: 1px solid #d6e0ea;
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+}
+
+.editor-nav > strong,
+.editor-nav-group > span {
+  color: #526174;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.editor-nav button {
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  color: #344257;
+  background: transparent;
+  text-align: left;
+}
+
+.editor-nav button:hover,
+.editor-nav button:focus-visible {
+  color: #245b8f;
+  background: #eaf1f7;
+  outline: none;
+}
+
+.editor-nav-group {
+  display: grid;
+  gap: 0.2rem;
+  border-top: 1px solid #dce5ed;
+  padding-top: 0.5rem;
+}
+
+.editor-nav-group button:not(:first-of-type) {
+  padding-left: 1rem;
+  font-size: 0.84rem;
+}
+
+#version-lifecycle,
+#management-settings,
+#survey-settings,
+#question-editor,
+#jump-editor,
+#publish-action,
+#published-version,
+.published-question-card,
+.question-card,
+.rule-card {
+  scroll-margin-top: 1rem;
+}
+
 .settings-card {
   border: 1px solid #e1e8ef;
   border-radius: 0.8rem;
@@ -195,6 +267,144 @@ select {
 
 .settings-card h3 {
   margin: 0 0 0.3rem;
+}
+
+.lifecycle-actions,
+.version-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.version-history {
+  margin-top: 1rem;
+}
+
+.version-history button {
+  border: 1px solid #cbd7e3;
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  color: #344257;
+  background: white;
+}
+
+.version-history button.active {
+  border-color: #245b8f;
+  color: #245b8f;
+  background: #eaf1f7;
+  font-weight: 700;
+}
+
+.publish-action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-color: #9fc0df;
+  background: #eef6fd;
+}
+
+.publish-action-card p {
+  margin-bottom: 0;
+}
+
+.publish-action-buttons,
+.draft-preview-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.draft-preview-shell {
+  display: grid;
+  gap: 0.75rem;
+  border: 2px solid #9fc0df;
+  border-radius: 0.9rem;
+  padding: 0.8rem;
+  background: #eef6fd;
+}
+
+.draft-preview-toolbar {
+  justify-content: space-between;
+  padding: 0.15rem 0.3rem;
+}
+
+.draft-preview-toolbar div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.published-heading,
+.published-question-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.published-heading p {
+  margin-bottom: 0;
+}
+
+.readonly-badge,
+.published-question-card header span {
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: #245b8f;
+  background: #e4eff9;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.published-questions {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.published-question-card {
+  border: 1px solid #d8e2eb;
+  border-radius: 0.8rem;
+  padding: 1rem;
+  background: white;
+}
+
+.published-question-card header span:first-child {
+  border-radius: 0;
+  padding: 0;
+  color: #526174;
+  background: transparent;
+}
+
+.published-question-card h4 {
+  margin: 0.75rem 0;
+  font-size: 1rem;
+}
+
+.published-options,
+.published-validation,
+.published-rules ol {
+  margin: 0.55rem 0;
+  padding-left: 1.5rem;
+}
+
+.published-options li,
+.published-validation li,
+.published-rules li {
+  margin: 0.3rem 0;
+}
+
+.published-validation,
+.published-rules small {
+  color: #526174;
+}
+
+.published-rules {
+  margin-top: 0.9rem;
+  border-top: 1px solid #e1e8ef;
+  padding-top: 0.8rem;
 }
 
 .question-section {
@@ -660,5 +870,36 @@ input:focus {
 
   .rule-actions {
     grid-column: auto;
+  }
+
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-shadow: 0 0.4rem 1rem rgb(39 69 99 / 12%);
+  }
+
+  .editor-nav > strong,
+  .editor-nav-group > span {
+    display: none;
+  }
+
+  .editor-nav-group {
+    display: contents;
+  }
+
+  .editor-nav button,
+  .editor-nav-group button:not(:first-of-type) {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.7rem;
+    white-space: nowrap;
   }
 }

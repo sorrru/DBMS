@@ -1,6 +1,6 @@
 # 基于 MongoDB 的版本化问卷系统
 
-本仓库用于数据库系统大作业一。里程碑 1 至 5 已实现并通过自动检查和人工验收。正式发布、填写和统计尚未开始。
+本仓库用于数据库系统大作业一。里程碑 1 至 6 已实现并通过自动检查和人工验收；填写和统计尚未开始。
 
 ## 当前技术版本
 
@@ -194,6 +194,7 @@ MongoDB 已连接时：
 - [题目与校验规则设计](docs/QUESTION_DESIGN.md)
 - [跳转规则与发布检查设计](docs/JUMP_DESIGN.md)
 - [版本发布与生命周期设计](docs/VERSION_LIFECYCLE_DESIGN.md)
+- [里程碑 6 版本历史查询执行计划](docs/experiments/MILESTONE6_EXPLAIN.md)
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 

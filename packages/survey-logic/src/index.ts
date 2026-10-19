@@ -72,6 +72,32 @@ export interface PublishCheck {
   warnings: CheckIssue[];
 }
 
+export interface SurveyStatusInput {
+  currentVersionId: string | null;
+  manualStatus: "open" | "closed";
+}
+
+export interface CurrentVersionStatusInput {
+  deadline: string | Date | null;
+}
+
+export type SurveyStatus = "draft" | "published" | "closed" | "expired";
+
+export function computeSurveyStatus(
+  survey: SurveyStatusInput,
+  currentVersion: CurrentVersionStatusInput | null,
+  now: Date,
+): SurveyStatus {
+  if (!survey.currentVersionId || !currentVersion) return "draft";
+  if (survey.manualStatus === "closed") return "closed";
+  if (
+    currentVersion.deadline &&
+    new Date(currentVersion.deadline).getTime() <= now.getTime()
+  )
+    return "expired";
+  return "published";
+}
+
 const safeMaximum = Number.MAX_SAFE_INTEGER;
 const codePoints = (value: string): number => Array.from(value).length;
 const failure = (reason: string): AnswerResult => ({

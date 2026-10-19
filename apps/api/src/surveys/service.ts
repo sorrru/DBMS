@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { validateForPublish, type PublishCheck } from "@survey/survey-logic";
+import {
+  computeSurveyStatus,
+  validateForPublish,
+  type PublishCheck,
+  type SurveyStatus,
+} from "@survey/survey-logic";
 import mongoose, { Types, type ClientSession } from "mongoose";
 import type { AppEnv } from "../config/env.js";
 import { ApiError, validationError } from "../errors/api-error.js";
@@ -23,12 +28,13 @@ interface VersionSummary {
   versionNumber: number;
   title: string;
   revision: number;
+  deadline: string | null;
 }
 export interface SurveySummary {
   id: string;
   publicId: string;
   internalName: string;
-  status: "draft" | "open" | "closed" | "expired";
+  status: SurveyStatus;
   createdAt: string;
   updatedAt: string;
   currentVersion: VersionSummary | null;
@@ -56,8 +62,24 @@ export interface PublicVersion {
 
 class ConditionalUpdateFailed extends Error {}
 
+function duplicateKeyPattern(error: unknown): Record<string, unknown> | null {
+  const candidate = error as {
+    code?: unknown;
+    keyPattern?: Record<string, unknown>;
+  };
+  return candidate?.code === 11000 && candidate.keyPattern
+    ? candidate.keyPattern
+    : null;
+}
+
 type LeanSurvey = Survey & { _id: Types.ObjectId };
 type LeanVersion = SurveyVersion & { _id: Types.ObjectId };
+
+export interface SurveyLifecycleTestHooks {
+  afterVersionPublished?: () => void | Promise<void>;
+  afterSurveyPublished?: () => void | Promise<void>;
+  afterVersionCreated?: () => void | Promise<void>;
+}
 
 const versionSummary = (version?: LeanVersion): VersionSummary | null =>
   version
@@ -66,6 +88,7 @@ const versionSummary = (version?: LeanVersion): VersionSummary | null =>
         versionNumber: version.versionNumber,
         title: version.title,
         revision: version.revision,
+        deadline: version.deadline?.toISOString() ?? null,
       }
     : null;
 
@@ -94,6 +117,8 @@ export class SurveyService {
   constructor(
     private readonly env: Readonly<AppEnv>,
     private readonly cursors: SurveyCursorService,
+    private readonly clock: () => Date = () => new Date(),
+    private readonly testHooks: Readonly<SurveyLifecycleTestHooks> = {},
   ) {}
 
   async ensureIndexes(): Promise<void> {
@@ -474,6 +499,354 @@ export class SurveyService {
     );
   }
 
+  async publish(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    revision: number,
+    acknowledgeWarnings: boolean,
+  ): Promise<{
+    survey: SurveySummary;
+    version: PublicVersion;
+    check: PublishCheck;
+  }> {
+    await this.ensureIndexes();
+    const session = await mongoose.startSession();
+    let published: LeanVersion | null = null;
+    let check: PublishCheck | null = null;
+    try {
+      await session.withTransaction(async () => {
+        const now = this.clock();
+        const survey = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+          .session(session)
+          .lean()
+          .exec()) as LeanSurvey | null;
+        if (!survey) throw this.notFound();
+        const version = (await SurveyVersionModel.findOne({
+          _id: versionId,
+          surveyId,
+        })
+          .session(session)
+          .lean()
+          .exec()) as LeanVersion | null;
+        if (!version) throw this.notFound();
+        if (version.status !== "draft")
+          throw new ApiError(409, "VERSION_NOT_EDITABLE", "目标版本不可编辑");
+        if (
+          version.revision !== revision ||
+          survey.draftVersionId?.toString() !== versionId
+        )
+          throw new ConditionalUpdateFailed();
+        check = validateForPublish(
+          {
+            revision: version.revision,
+            deadline: version.deadline,
+            questions: version.questions as SurveyQuestion[],
+          },
+          now,
+          this.env.jumpRuleMaxPerQuestion,
+        );
+        if (!check.valid)
+          throw new ApiError(409, "PUBLISH_BLOCKED", "问卷未通过发布检查", {
+            check,
+          });
+        if (check.warnings.length && !acknowledgeWarnings)
+          throw new ApiError(
+            409,
+            "PUBLISH_WARNINGS_UNCONFIRMED",
+            "发布警告尚未确认",
+            { check },
+          );
+        published = (await SurveyVersionModel.findOneAndUpdate(
+          { _id: versionId, surveyId, status: "draft", revision },
+          {
+            $set: {
+              status: "published",
+              publishedAt: now,
+              updatedAt: now,
+            },
+          },
+          { returnDocument: "after", session, timestamps: false },
+        )
+          .lean()
+          .exec()) as LeanVersion | null;
+        if (!published) throw new ConditionalUpdateFailed();
+        await this.testHooks.afterVersionPublished?.();
+        const surveyWrite = await SurveyModel.updateOne(
+          { _id: surveyId, ownerId, draftVersionId: versionId },
+          {
+            $set: {
+              currentVersionId: versionId,
+              draftVersionId: null,
+              updatedAt: now,
+            },
+          },
+          { session, timestamps: false },
+        );
+        if (surveyWrite.matchedCount !== 1) throw new ConditionalUpdateFailed();
+        await this.testHooks.afterSurveyPublished?.();
+      });
+    } catch (error) {
+      if (error instanceof ConditionalUpdateFailed)
+        await this.diagnosePatch(ownerId, surveyId, versionId);
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+    if (!published || !check)
+      throw new ApiError(500, "INTERNAL_ERROR", "服务器内部错误");
+    return {
+      survey: await this.get(ownerId, surveyId),
+      version: publicVersion(published),
+      check,
+    };
+  }
+
+  async createNextVersion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    sourceVersionId: string,
+  ): Promise<{ survey: SurveySummary; version: PublicVersion }> {
+    await this.ensureIndexes();
+    const initial = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+      .lean()
+      .exec()) as LeanSurvey | null;
+    if (!initial) throw this.notFound();
+    if (!initial.currentVersionId)
+      throw new ApiError(409, "SURVEY_NOT_PUBLISHED", "问卷尚未发布");
+    if (initial.draftVersionId)
+      throw new ApiError(409, "DRAFT_ALREADY_EXISTS", "问卷已有草稿");
+    if (initial.currentVersionId.toString() !== sourceVersionId)
+      throw new ApiError(
+        409,
+        "SOURCE_VERSION_NOT_CURRENT",
+        "来源版本不是当前版本",
+      );
+    const source = (await SurveyVersionModel.findOne({
+      _id: sourceVersionId,
+      surveyId,
+      status: "published",
+    })
+      .lean()
+      .exec()) as LeanVersion | null;
+    if (!source) throw this.notFound();
+    const versionId = new Types.ObjectId();
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const now = this.clock();
+        await SurveyVersionModel.create(
+          [
+            {
+              _id: versionId,
+              surveyId: new Types.ObjectId(surveyId),
+              versionNumber: source.versionNumber + 1,
+              status: "draft",
+              revision: 1,
+              title: source.title,
+              description: source.description,
+              identityMode: source.identityMode,
+              allowMultipleSubmissions: source.allowMultipleSubmissions,
+              deadline: source.deadline,
+              sessionDurationMinutes: source.sessionDurationMinutes,
+              questions: structuredClone(source.questions),
+              schemaVersion: source.schemaVersion,
+              publishedAt: null,
+            },
+          ],
+          { session },
+        );
+        await this.testHooks.afterVersionCreated?.();
+        const write = await SurveyModel.updateOne(
+          {
+            _id: surveyId,
+            ownerId,
+            draftVersionId: null,
+            currentVersionId: sourceVersionId,
+          },
+          { $set: { draftVersionId: versionId, updatedAt: now } },
+          { session, timestamps: false },
+        );
+        if (write.matchedCount !== 1) throw new ConditionalUpdateFailed();
+      });
+    } catch (error) {
+      const keyPattern = duplicateKeyPattern(error);
+      if (
+        keyPattern &&
+        !(
+          (keyPattern.surveyId === 1 && keyPattern.status === 1) ||
+          (keyPattern.surveyId === 1 && keyPattern.versionNumber === 1)
+        )
+      )
+        throw error;
+      const current = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+        .lean()
+        .exec()) as LeanSurvey | null;
+      if (!current) throw this.notFound();
+      if (!current.currentVersionId)
+        throw new ApiError(409, "SURVEY_NOT_PUBLISHED", "问卷尚未发布");
+      if (current.draftVersionId)
+        throw new ApiError(409, "DRAFT_ALREADY_EXISTS", "问卷已有草稿");
+      if (current.currentVersionId.toString() !== sourceVersionId)
+        throw new ApiError(
+          409,
+          "SOURCE_VERSION_NOT_CURRENT",
+          "来源版本不是当前版本",
+        );
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+    const version = (await SurveyVersionModel.findById(versionId)
+      .lean()
+      .exec()) as LeanVersion | null;
+    if (!version) throw new ApiError(500, "INTERNAL_ERROR", "服务器内部错误");
+    return {
+      survey: await this.get(ownerId, surveyId),
+      version: publicVersion(version),
+    };
+  }
+
+  async discardDraft(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    revision: number,
+  ): Promise<{ survey: SurveySummary }> {
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const survey = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+          .session(session)
+          .lean()
+          .exec()) as LeanSurvey | null;
+        if (!survey) throw this.notFound();
+        const version = (await SurveyVersionModel.findOne({
+          _id: versionId,
+          surveyId,
+        })
+          .session(session)
+          .lean()
+          .exec()) as LeanVersion | null;
+        if (!version) throw this.notFound();
+        if (!survey.currentVersionId)
+          throw new ApiError(409, "SURVEY_NOT_PUBLISHED", "初始草稿不能放弃");
+        if (version.status !== "draft")
+          throw new ApiError(409, "VERSION_NOT_EDITABLE", "目标版本不可编辑");
+        if (
+          version.revision !== revision ||
+          survey.draftVersionId?.toString() !== versionId
+        )
+          throw new ApiError(409, "DRAFT_CONFLICT", "草稿已发生变化", {
+            currentRevision: version.revision,
+          });
+        const removed = await SurveyVersionModel.deleteOne(
+          { _id: versionId, surveyId, status: "draft", revision },
+          { session },
+        );
+        if (removed.deletedCount !== 1) throw new ConditionalUpdateFailed();
+        const write = await SurveyModel.updateOne(
+          { _id: surveyId, ownerId, draftVersionId: versionId },
+          { $set: { draftVersionId: null, updatedAt: this.clock() } },
+          { session, timestamps: false },
+        );
+        if (write.matchedCount !== 1) throw new ConditionalUpdateFailed();
+      });
+    } finally {
+      await session.endSession();
+    }
+    return { survey: await this.get(ownerId, surveyId) };
+  }
+
+  async listVersions(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    limit: number,
+    cursorText?: string,
+  ): Promise<{ items: Record<string, unknown>[]; nextCursor: string | null }> {
+    const survey = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+      .lean()
+      .exec()) as LeanSurvey | null;
+    if (!survey) throw this.notFound();
+    const cursor = cursorText
+      ? this.cursors.decodeVersion(cursorText, surveyId)
+      : undefined;
+    const rows = await SurveyVersionModel.aggregate([
+      {
+        $match: {
+          surveyId: new Types.ObjectId(surveyId),
+          ...(cursor ? { versionNumber: { $lt: cursor.versionNumber } } : {}),
+        },
+      },
+      { $sort: { versionNumber: -1 } },
+      { $limit: limit + 1 },
+      {
+        $project: {
+          versionNumber: 1,
+          status: 1,
+          title: 1,
+          revision: 1,
+          deadline: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          publishedAt: 1,
+          questionCount: { $size: "$questions" },
+        },
+      },
+    ]).exec();
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const items = page.map((row) => ({
+      id: row._id.toString(),
+      versionNumber: row.versionNumber,
+      status: row.status,
+      title: row.title,
+      questionCount: row.questionCount,
+      revision: row.revision,
+      deadline: row.deadline?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      publishedAt: row.publishedAt?.toISOString() ?? null,
+      isCurrent: survey.currentVersionId?.toString() === row._id.toString(),
+      isDraft: survey.draftVersionId?.toString() === row._id.toString(),
+    }));
+    const last = page.at(-1);
+    return {
+      items,
+      nextCursor:
+        hasMore && last
+          ? this.cursors.encodeVersion({
+              surveyId,
+              versionNumber: last.versionNumber,
+            })
+          : null,
+    };
+  }
+
+  async setStatus(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    manualStatus: "open" | "closed",
+  ): Promise<SurveySummary> {
+    await SurveyModel.updateOne(
+      {
+        _id: surveyId,
+        ownerId,
+        currentVersionId: { $ne: null },
+        manualStatus: manualStatus === "open" ? "closed" : "open",
+      },
+      { $set: { manualStatus, updatedAt: this.clock() } },
+      { timestamps: false },
+    );
+    const survey = (await SurveyModel.findOne({ _id: surveyId, ownerId })
+      .lean()
+      .exec()) as LeanSurvey | null;
+    if (!survey) throw this.notFound();
+    if (!survey.currentVersionId)
+      throw new ApiError(409, "SURVEY_NOT_PUBLISHED", "问卷尚未发布");
+    return (await this.summaries([survey]))[0]!;
+  }
+
   reorderQuestions(
     ownerId: Types.ObjectId,
     surveyId: string,
@@ -621,13 +994,14 @@ export class SurveyService {
       const current = survey.currentVersionId
         ? byId.get(survey.currentVersionId.toString())
         : undefined;
-      const status = !current
-        ? "draft"
-        : survey.manualStatus === "closed"
-          ? "closed"
-          : current.deadline && current.deadline <= new Date()
-            ? "expired"
-            : "open";
+      const status = computeSurveyStatus(
+        {
+          currentVersionId: survey.currentVersionId?.toString() ?? null,
+          manualStatus: survey.manualStatus,
+        },
+        current ? { deadline: current.deadline } : null,
+        this.clock(),
+      );
       return {
         id: survey._id.toString(),
         publicId: survey.publicId,

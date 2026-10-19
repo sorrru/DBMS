@@ -145,16 +145,75 @@ async function main(): Promise<void> {
     ],
   );
   anonymousRevision = branched.version.revision;
+  await surveys.publish(
+    user._id,
+    anonymous.id,
+    anonymous.draftVersion!.id,
+    anonymousRevision,
+    true,
+  );
+  await surveys.createNextVersion(
+    user._id,
+    anonymous.id,
+    anonymous.draftVersion!.id,
+  );
   const identified = await surveys.create(user._id, "实名活动报名（种子）");
-  await surveys.patchDraft(
+  const identifiedSettings = await surveys.patchDraft(
     user._id,
     identified.id,
     identified.draftVersion!.id,
     1,
     { identityMode: "identified" },
   );
+  const identifiedQuestion = await surveys.addQuestion(
+    user._id,
+    identified.id,
+    identified.draftVersion!.id,
+    {
+      revision: identifiedSettings.version.revision,
+      type: "text",
+      title: "姓名",
+      required: true,
+      validation: { minLength: 1, maxLength: 80 },
+      options: [],
+    },
+  );
+  await surveys.publish(
+    user._id,
+    identified.id,
+    identified.draftVersion!.id,
+    identifiedQuestion.version.revision,
+    false,
+  );
+  await surveys.setStatus(user._id, identified.id, "closed");
+
+  const expired = await surveys.create(user._id, "已到期问卷（种子）");
+  const expiredQuestion = await surveys.addQuestion(
+    user._id,
+    expired.id,
+    expired.draftVersion!.id,
+    {
+      revision: 1,
+      type: "text",
+      title: "历史反馈",
+      required: false,
+      validation: {},
+      options: [],
+    },
+  );
+  await surveys.publish(
+    user._id,
+    expired.id,
+    expired.draftVersion!.id,
+    expiredQuestion.version.revision,
+    false,
+  );
+  await SurveyVersionModel.updateOne(
+    { _id: expired.draftVersion!.id },
+    { $set: { deadline: new Date("2020-01-01T00:00:00.000Z") } },
+  );
   console.info(
-    `种子数据已创建：${seedUsername}，2 份 v1 草稿、四种题型及一条有效分支规则`,
+    `种子数据已创建：${seedUsername}，包含已发布 v1 + 草稿 v2、关闭、到期、四种题型和有效分支`,
   );
 }
 

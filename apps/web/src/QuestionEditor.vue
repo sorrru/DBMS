@@ -22,6 +22,7 @@ const emit = defineEmits<{
   busy: [value: boolean];
   dirty: [value: boolean];
   failure: [error: unknown];
+  navigation: [items: Array<{ id: string; label: string }>];
 }>();
 
 interface Card extends EditableQuestion {
@@ -96,6 +97,20 @@ const isDirtyCard = (card: Card): boolean =>
   }) !== card.original;
 const hasDirty = computed(() => cards.value.some(isDirtyCard));
 watch(hasDirty, (value) => emit("dirty", value), { immediate: true });
+watch(
+  cards,
+  (items) =>
+    emit(
+      "navigation",
+      items.map((card, index) => ({
+        id: card.questionId
+          ? `question-${card.questionId}`
+          : `question-${card.key}`,
+        label: `第 ${index + 1} 题`,
+      })),
+    ),
+  { deep: true, immediate: true },
+);
 
 function defaultCard(type: QuestionType): Card {
   const options =
@@ -265,6 +280,9 @@ const typeLabel = (type: QuestionType): string =>
     <article
       v-for="(card, cardIndex) in cards"
       :key="card.key"
+      :id="
+        card.questionId ? `question-${card.questionId}` : `question-${card.key}`
+      "
       class="question-card"
     >
       <header class="question-card-header">

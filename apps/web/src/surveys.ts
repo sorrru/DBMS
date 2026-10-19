@@ -24,6 +24,21 @@ export interface VersionSummary {
   versionNumber: number;
   title: string;
   revision: number;
+  deadline: string | null;
+}
+export interface VersionHistorySummary {
+  id: string;
+  versionNumber: number;
+  status: "draft" | "published";
+  title: string;
+  questionCount: number;
+  revision: number;
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  isCurrent: boolean;
+  isDraft: boolean;
 }
 export interface SurveySummary {
   id: string;
@@ -205,6 +220,54 @@ export const validateDraftForPublish = (
   apiRequest<PublishCheck>(
     `/api/surveys/${surveyId}/versions/${versionId}/validate`,
     jsonRequest("POST", { revision }),
+  );
+
+export const publishVersion = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+  acknowledgeWarnings: boolean,
+) =>
+  apiRequest<{
+    survey: SurveySummary;
+    version: SurveyVersion;
+    check: PublishCheck;
+  }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/publish`,
+    jsonRequest("POST", { revision, acknowledgeWarnings }),
+  );
+
+export const createNextVersion = (surveyId: string, sourceVersionId: string) =>
+  apiRequest<{ survey: SurveySummary; version: SurveyVersion }>(
+    `/api/surveys/${surveyId}/versions`,
+    jsonRequest("POST", { sourceVersionId }),
+  );
+
+export const discardDraft = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+) =>
+  apiRequest<{ survey: SurveySummary }>(
+    `/api/surveys/${surveyId}/versions/${versionId}`,
+    jsonRequest("DELETE", { revision }),
+  );
+
+export const listVersions = (surveyId: string, cursor?: string) =>
+  apiRequest<{
+    items: VersionHistorySummary[];
+    nextCursor: string | null;
+  }>(
+    `/api/surveys/${surveyId}/versions?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+  );
+
+export const setSurveyStatus = (
+  surveyId: string,
+  manualStatus: "open" | "closed",
+) =>
+  apiRequest<{ survey: SurveySummary }>(
+    `/api/surveys/${surveyId}/status`,
+    jsonPatch({ manualStatus }),
   );
 
 const prefix = (surveyId: string, versionId: string) =>
