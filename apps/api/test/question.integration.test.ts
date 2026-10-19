@@ -406,4 +406,167 @@ describe("question API", () => {
     }).expect(201);
     expect(response.body.version.questions[0].options).toHaveLength(50);
   });
+
+  it("saves ordered jump rules, rejects self targets, and detects concurrent writes", async () => {
+    const first = await add({
+      revision: 1,
+      type: "multiple",
+      title: "选择",
+      validation: {},
+      options: [{ text: "甲" }, { text: "乙" }],
+    }).expect(201);
+    const second = await add({
+      revision: 2,
+      type: "text",
+      title: "中间",
+      validation: {},
+      options: [],
+    }).expect(201);
+    const third = await add({
+      revision: 3,
+      type: "text",
+      title: "终点",
+      validation: {},
+      options: [],
+    }).expect(201);
+    const source = first.body.version.questions[0] as SurveyQuestion;
+    const path = `/api/surveys/${surveyId}/versions/${versionId}/questions/${source.questionId}/jump-rules`;
+    const body = {
+      revision: 4,
+      rules: [
+        {
+          operator: "containsAll",
+          value: [source.options[1]!.optionId, source.options[0]!.optionId],
+          targetQuestionId: third.body.questionId,
+        },
+      ],
+    };
+    const responses = await Promise.all([
+      auth(request(app).put(path)).send(body),
+      auth(request(app).put(path)).send(body),
+    ]);
+    expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+    const success = responses.find(({ status }) => status === 200)!;
+    expect(success.body.version.questions[0].jumpRules[0].value).toEqual([
+      source.options[0]!.optionId,
+      source.options[1]!.optionId,
+    ]);
+    const self = await auth(request(app).put(path))
+      .send({
+        revision: 5,
+        rules: [
+          {
+            operator: "contains",
+            value: source.options[0]!.optionId,
+            targetQuestionId: source.questionId,
+          },
+        ],
+      })
+      .expect(400);
+    expect(self.body.error.details.path).toBe("rules[0].targetQuestionId");
+    expect(second.body.questionId).toBeTruthy();
+  });
+
+  it("protects referenced questions and options", async () => {
+    const first = await add({
+      revision: 1,
+      type: "single",
+      title: "入口",
+      validation: {},
+      options: [{ text: "甲" }, { text: "乙" }],
+    }).expect(201);
+    const second = await add({
+      revision: 2,
+      type: "text",
+      title: "目标",
+      validation: {},
+      options: [],
+    }).expect(201);
+    const source = first.body.version.questions[0] as SurveyQuestion;
+    const saved = await auth(
+      request(app).put(
+        `/api/surveys/${surveyId}/versions/${versionId}/questions/${source.questionId}/jump-rules`,
+      ),
+    )
+      .send({
+        revision: 3,
+        rules: [
+          {
+            operator: "equals",
+            value: source.options[0]!.optionId,
+            targetQuestionId: second.body.questionId,
+          },
+        ],
+      })
+      .expect(200);
+    const deleteTarget = await auth(
+      request(app).delete(
+        `/api/surveys/${surveyId}/versions/${versionId}/questions/${second.body.questionId}`,
+      ),
+    )
+      .send({ revision: 4 })
+      .expect(409);
+    expect(deleteTarget.body.error.code).toBe("QUESTION_REFERENCED");
+
+    const replaceSource = await auth(
+      request(app).patch(
+        `/api/surveys/${surveyId}/versions/${versionId}/questions/${source.questionId}`,
+      ),
+    )
+      .send({
+        revision: 4,
+        title: "入口",
+        required: false,
+        validation: {},
+        options: [
+          { optionId: source.options[1]!.optionId, text: "乙" },
+          { text: "丙" },
+        ],
+      })
+      .expect(409);
+    expect(replaceSource.body.error.code).toBe("OPTION_REFERENCED");
+    expect(saved.body.version.questions[0].jumpRules).toHaveLength(1);
+  });
+
+  it("validates without changing revision or timestamps", async () => {
+    await add({
+      revision: 1,
+      type: "text",
+      title: "问题",
+      validation: {},
+      options: [],
+    }).expect(201);
+    const before = await SurveyVersionModel.findById(versionId).lean();
+    const result = await auth(
+      request(app).post(
+        `/api/surveys/${surveyId}/versions/${versionId}/validate`,
+      ),
+    )
+      .send({ revision: 2 })
+      .expect(200);
+    const after = await SurveyVersionModel.findById(versionId).lean();
+    expect(result.body).toMatchObject({ revision: 2, valid: true });
+    expect(after!.revision).toBe(before!.revision);
+    expect(after!.updatedAt).toEqual(before!.updatedAt);
+    const stale = await auth(
+      request(app).post(
+        `/api/surveys/${surveyId}/versions/${versionId}/validate`,
+      ),
+    )
+      .send({ revision: 1 })
+      .expect(409);
+    expect(stale.body.error.code).toBe("DRAFT_CONFLICT");
+    await SurveyVersionModel.updateOne(
+      { _id: versionId },
+      { $set: { status: "published" } },
+    );
+    const published = await auth(
+      request(app).post(
+        `/api/surveys/${surveyId}/versions/${versionId}/validate`,
+      ),
+    )
+      .send({ revision: 2 })
+      .expect(409);
+    expect(published.body.error.code).toBe("VERSION_NOT_EDITABLE");
+  });
 });

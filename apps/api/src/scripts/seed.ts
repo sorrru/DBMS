@@ -100,8 +100,9 @@ async function main(): Promise<void> {
       },
     );
     anonymousRevision = result.version.revision;
+    return result.version.questions.at(-1)!;
   };
-  await addAnonymousQuestion(
+  const satisfaction = await addAnonymousQuestion(
     "single",
     "你对课程整体满意吗？",
     {},
@@ -120,12 +121,30 @@ async function main(): Promise<void> {
     { minLength: 7, maxLength: 20, digitsOnly: true },
     [],
   );
-  await addAnonymousQuestion(
+  const studyHours = await addAnonymousQuestion(
     "number",
     "每周学习时长（小时）",
     { integerOnly: false, minValue: 0, maxValue: 168 },
     [],
   );
+  const dissatisfied = satisfaction.options.find(
+    (option) => option.text === "不满意",
+  )!;
+  const branched = await surveys.updateJumpRules(
+    user._id,
+    anonymous.id,
+    anonymous.draftVersion!.id,
+    satisfaction.questionId,
+    anonymousRevision,
+    [
+      {
+        operator: "equals",
+        value: dissatisfied.optionId,
+        targetQuestionId: studyHours.questionId,
+      },
+    ],
+  );
+  anonymousRevision = branched.version.revision;
   const identified = await surveys.create(user._id, "实名活动报名（种子）");
   await surveys.patchDraft(
     user._id,
@@ -134,7 +153,9 @@ async function main(): Promise<void> {
     1,
     { identityMode: "identified" },
   );
-  console.info(`种子数据已创建：${seedUsername}，2 份 v1 草稿及四种题型`);
+  console.info(
+    `种子数据已创建：${seedUsername}，2 份 v1 草稿、四种题型及一条有效分支规则`,
+  );
 }
 
 void main()

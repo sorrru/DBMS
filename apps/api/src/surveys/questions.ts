@@ -1,32 +1,22 @@
 import { randomBytes } from "node:crypto";
+import type {
+  QuestionOption,
+  QuestionType,
+  QuestionValidation,
+  SurveyQuestion,
+} from "@survey/survey-logic";
 import { validationError } from "../errors/api-error.js";
 
-export type QuestionType = "single" | "multiple" | "text" | "number";
-
-export interface QuestionOption {
-  optionId: string;
-  text: string;
-}
-
-export type QuestionValidation =
-  | Record<string, never>
-  | { minSelections: number; maxSelections: number }
-  | { minLength: number; maxLength: number; digitsOnly: boolean }
-  | {
-      integerOnly: boolean;
-      minValue: number | null;
-      maxValue: number | null;
-    };
-
-export interface SurveyQuestion {
-  questionId: string;
-  type: QuestionType;
-  title: string;
-  required: boolean;
-  validation: QuestionValidation;
-  options: QuestionOption[];
-  jumpRules: unknown[];
-}
+export type {
+  AnswerResult,
+  JumpOperator,
+  JumpRule,
+  QuestionOption,
+  QuestionType,
+  QuestionValidation,
+  SurveyQuestion,
+} from "@survey/survey-logic";
+export { validateAnswer } from "@survey/survey-logic";
 
 export interface RawOption {
   optionId?: string;
@@ -48,10 +38,6 @@ export interface RawCreateQuestion extends RawQuestionDefinition {
 export interface RawReplaceQuestion extends RawQuestionDefinition {
   revision: number;
 }
-
-export type AnswerResult =
-  | { ok: true; value: string | string[] | number | null; answered: boolean }
-  | { ok: false; path: string; reason: string };
 
 const forbiddenCharacters = /[\p{Cc}\u202a-\u202e\u2066-\u2069]/u;
 const questionIdPattern = /^q_[A-Za-z0-9_-]+$/;
@@ -319,98 +305,6 @@ export function normalizeQuestion(
     required: raw.required,
     validation: normalizedValidation(type, raw.validation, options.length),
     options,
-    jumpRules: [],
+    jumpRules: existing?.jumpRules ?? [],
   };
-}
-
-const answerFailure = (reason: string): AnswerResult => ({
-  ok: false,
-  path: "answer",
-  reason,
-});
-
-export function validateAnswer(
-  question: SurveyQuestion,
-  candidate: unknown,
-): AnswerResult {
-  const missing = candidate === undefined || candidate === null;
-  if (
-    question.type === "multiple" &&
-    Array.isArray(candidate) &&
-    candidate.length === 0
-  )
-    return question.required
-      ? answerFailure("此题为必答题")
-      : { ok: true, value: null, answered: false };
-  if (question.type === "text" && typeof candidate === "string") {
-    const value = candidate.normalize("NFC").trim();
-    if (value.length === 0)
-      return question.required
-        ? answerFailure("此题为必答题")
-        : { ok: true, value: null, answered: false };
-    const validation = question.validation as Extract<
-      QuestionValidation,
-      { minLength: number }
-    >;
-    const length = codePoints(value);
-    if (length < validation.minLength || length > validation.maxLength)
-      return answerFailure("文本长度不符合要求");
-    if (validation.digitsOnly && !/^[0-9]+$/.test(value))
-      return answerFailure("只能输入 ASCII 数字");
-    return { ok: true, value, answered: true };
-  }
-  if (missing)
-    return question.required
-      ? answerFailure("此题为必答题")
-      : { ok: true, value: null, answered: false };
-  const allowed = new Set(question.options.map((option) => option.optionId));
-  if (question.type === "single") {
-    if (typeof candidate !== "string" || !allowed.has(candidate))
-      return answerFailure("选项无效");
-    return { ok: true, value: candidate, answered: true };
-  }
-  if (question.type === "multiple") {
-    if (
-      !Array.isArray(candidate) ||
-      candidate.some((item) => typeof item !== "string")
-    )
-      return answerFailure("多选答案必须是选项 ID 数组");
-    const values = candidate as string[];
-    if (
-      new Set(values).size !== values.length ||
-      values.some((id) => !allowed.has(id))
-    )
-      return answerFailure("多选答案包含重复或无效选项");
-    const validation = question.validation as Extract<
-      QuestionValidation,
-      { minSelections: number }
-    >;
-    if (
-      values.length < validation.minSelections ||
-      values.length > validation.maxSelections
-    )
-      return answerFailure("选择数量不符合要求");
-    return { ok: true, value: values, answered: true };
-  }
-  if (question.type === "number") {
-    if (
-      typeof candidate !== "number" ||
-      !Number.isFinite(candidate) ||
-      Math.abs(candidate) > safeMaximum
-    )
-      return answerFailure("必须是安全范围内的有限数值");
-    const value = Object.is(candidate, -0) ? 0 : candidate;
-    const validation = question.validation as Extract<
-      QuestionValidation,
-      { integerOnly: boolean }
-    >;
-    if (validation.integerOnly && !Number.isInteger(value))
-      return answerFailure("必须是整数");
-    if (validation.minValue !== null && value < validation.minValue)
-      return answerFailure("数值小于最小值");
-    if (validation.maxValue !== null && value > validation.maxValue)
-      return answerFailure("数值大于最大值");
-    return { ok: true, value, answered: true };
-  }
-  return answerFailure("答案类型错误");
 }

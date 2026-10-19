@@ -1,5 +1,9 @@
 import { Schema, model, type Types } from "mongoose";
-import type { QuestionOption, SurveyQuestion } from "../surveys/questions.js";
+import type {
+  JumpRule,
+  QuestionOption,
+  SurveyQuestion,
+} from "../surveys/questions.js";
 
 export interface SurveyVersion {
   surveyId: Types.ObjectId;
@@ -27,6 +31,29 @@ const optionSchema = new Schema<QuestionOption>(
   { _id: false, versionKey: false, minimize: false },
 );
 
+const jumpRuleSchema = new Schema<JumpRule>(
+  {
+    ruleId: { type: String, required: true },
+    operator: {
+      type: String,
+      enum: [
+        "equals",
+        "contains",
+        "containsAll",
+        "containsAny",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+      ],
+      required: true,
+    },
+    value: { type: Schema.Types.Mixed, required: true },
+    targetQuestionId: { type: String, required: true },
+  },
+  { _id: false, versionKey: false, minimize: false },
+);
+
 const questionSchema = new Schema<SurveyQuestion>(
   {
     questionId: { type: String, required: true },
@@ -39,7 +66,7 @@ const questionSchema = new Schema<SurveyQuestion>(
     required: { type: Boolean, required: true },
     validation: { type: Schema.Types.Mixed, required: true },
     options: { type: [optionSchema], required: true, default: [] },
-    jumpRules: { type: [Schema.Types.Mixed], required: true, default: [] },
+    jumpRules: { type: [jumpRuleSchema], required: true, default: [] },
   },
   { _id: false, versionKey: false, minimize: false },
 );

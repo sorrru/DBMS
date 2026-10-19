@@ -9,6 +9,7 @@ import {
   type PublicUser,
 } from "./auth";
 import DeadlineInput from "./DeadlineInput.vue";
+import JumpRuleEditor from "./JumpRuleEditor.vue";
 import QuestionEditor from "./QuestionEditor.vue";
 import { fetchHealth, type HealthResponse } from "./health";
 import {
@@ -40,6 +41,7 @@ const loading = ref(true);
 const submitting = ref(false);
 const writing = ref(false);
 const questionsDirty = ref(false);
+const rulesDirty = ref(false);
 const message = ref("");
 const surveys = ref<SurveySummary[]>([]);
 const nextCursor = ref<string | null>(null);
@@ -65,7 +67,9 @@ const changed = computed(() =>
   original.value ? changedDraftFields(original.value, form) : {},
 );
 const dirty = computed(() => Object.keys(changed.value).length > 0);
-const hasUnsaved = computed(() => dirty.value || questionsDirty.value);
+const hasUnsaved = computed(
+  () => dirty.value || questionsDirty.value || rulesDirty.value,
+);
 const recoveryChanges = computed(() =>
   recovery.value && original.value
     ? changedDraftFields(original.value, recovery.value.draft.fields)
@@ -213,6 +217,7 @@ async function openEditor(survey: SurveySummary): Promise<void> {
     message.value = "";
     savedAt.value = "";
     questionsDirty.value = false;
+    rulesDirty.value = false;
   } catch (error) {
     showError(error);
   }
@@ -302,6 +307,7 @@ function backToList(): void {
   original.value = undefined;
   recovery.value = undefined;
   questionsDirty.value = false;
+  rulesDirty.value = false;
   Object.keys(fieldErrors).forEach((field) => delete fieldErrors[field]);
   message.value = "";
 }
@@ -575,7 +581,11 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
               保存管理名称
             </button>
           </form>
-          <form class="settings-card" @submit.prevent="saveDraft">
+          <form
+            id="survey-settings"
+            class="settings-card"
+            @submit.prevent="saveDraft"
+          >
             <h3>公开基础设置</h3>
             <label
               >公开标题<input
@@ -651,6 +661,17 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
             @updated="updateQuestionVersion"
             @busy="writing = $event"
             @dirty="questionsDirty = $event"
+            @failure="showQuestionError"
+          />
+          <JumpRuleEditor
+            :survey-id="selectedSurvey.id"
+            :version="selectedVersion"
+            :busy="writing"
+            :questions-dirty="questionsDirty"
+            :settings-dirty="dirty"
+            @updated="updateQuestionVersion"
+            @busy="writing = $event"
+            @dirty="rulesDirty = $event"
             @failure="showQuestionError"
           />
         </div>

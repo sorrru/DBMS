@@ -4,14 +4,17 @@
   "private": true,
   "description": "基于 MongoDB 的版本化问卷系统第一阶段",
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "engines": {
     "node": "24.22.0"
   },
   "scripts": {
-    "dev": "concurrently --names api,web --prefix-colors blue,green \"npm run dev --workspace @survey/api\" \"npm run dev --workspace @survey/web\"",
-    "build": "npm run build --workspaces --if-present",
+    "predev": "npm run build --workspace @survey/survey-logic",
+    "dev": "concurrently --names logic,api,web --prefix-colors yellow,blue,green \"npm run dev --workspace @survey/survey-logic\" \"npm run dev --workspace @survey/api\" \"npm run dev --workspace @survey/web\"",
+    "build": "npm run build --workspace @survey/survey-logic && npm run build --workspace @survey/api && npm run build --workspace @survey/web",
+    "pretypecheck": "npm run build --workspace @survey/survey-logic",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",

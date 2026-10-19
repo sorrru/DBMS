@@ -6,6 +6,8 @@ import {
   deleteQuestion,
   findSettingsDraft,
   saveSettingsDraft,
+  updateJumpRules,
+  validateDraftForPublish,
   type DraftFields,
 } from "./surveys";
 
@@ -82,6 +84,59 @@ describe("question request whitelist", () => {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ revision: 7 }),
+      }),
+    );
+  });
+
+  it("sends a whole jump-rule group and a read-only validation request", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            revision: 8,
+            valid: true,
+            errors: [],
+            warnings: [],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await updateJumpRules("s1", "v1", "q_1", 7, [
+      {
+        operator: "equals",
+        value: "o_1",
+        targetQuestionId: "q_2",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/surveys/s1/versions/v1/questions/q_1/jump-rules",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          revision: 7,
+          rules: [
+            {
+              operator: "equals",
+              value: "o_1",
+              targetQuestionId: "q_2",
+            },
+          ],
+        }),
+      }),
+    );
+    await validateDraftForPublish("s1", "v1", 8);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/surveys/s1/versions/v1/validate",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ revision: 8 }),
       }),
     );
   });

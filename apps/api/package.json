@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --include ../../packages/survey-logic/dist/**/* src/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
@@ -13,6 +13,7 @@
     "seed:clean": "tsx src/scripts/seed.ts --clean"
   },
   "dependencies": {
+    "@survey/survey-logic": "0.1.0",
     "cors": "2.8.6",
     "dotenv": "18.0.8",
     "express": "5.3.0",

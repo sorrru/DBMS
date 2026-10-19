@@ -259,22 +259,6 @@ const typeLabel = (type: QuestionType): string =>
         <h3>题目</h3>
         <p class="muted">每张卡片单独保存；保存期间所有写操作会暂时锁定。</p>
       </div>
-      <div class="question-add">
-        <select v-model="newType" :disabled="busy">
-          <option value="single">单选题</option>
-          <option value="multiple">多选题</option>
-          <option value="text">文本题</option>
-          <option value="number">数字题</option>
-        </select>
-        <button
-          class="secondary"
-          type="button"
-          :disabled="busy"
-          @click="addLocal"
-        >
-          添加题目
-        </button>
-      </div>
     </div>
 
     <p v-if="!cards.length" class="empty-state">尚未添加题目。</p>
@@ -466,5 +450,21 @@ const typeLabel = (type: QuestionType): string =>
         </div>
       </footer>
     </article>
+    <div class="question-add question-add-bottom">
+      <select v-model="newType" :disabled="busy" aria-label="新题题型">
+        <option value="single">单选题</option>
+        <option value="multiple">多选题</option>
+        <option value="text">文本题</option>
+        <option value="number">数字题</option>
+      </select>
+      <button
+        class="secondary"
+        type="button"
+        :disabled="busy"
+        @click="addLocal"
+      >
+        添加题目
+      </button>
+    </div>
   </section>
 </template>

@@ -11,6 +11,17 @@ describe("loadEnv", () => {
     const loaded = loadEnv(valid);
     expect(loaded.surveyWriteRateLimit).toBe(120);
     expect(loaded.surveyWriteRateWindowMs).toBe(60_000);
+    expect(loaded.jumpRuleMaxPerQuestion).toBe(20);
+  });
+  it("accepts only a 1 to 100 jump-rule limit", () => {
+    expect(
+      loadEnv({ ...valid, JUMP_RULE_MAX_PER_QUESTION: "100" })
+        .jumpRuleMaxPerQuestion,
+    ).toBe(100);
+    for (const value of ["0", "101", "1.5", "invalid"])
+      expect(() =>
+        loadEnv({ ...valid, JUMP_RULE_MAX_PER_QUESTION: value }),
+      ).toThrow(/JUMP_RULE_MAX_PER_QUESTION/);
   });
   it("rejects weak, example and identical secrets", () => {
     expect(() => loadEnv({ ...valid, JWT_SECRET: "short" })).toThrow(

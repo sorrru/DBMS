@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { validateForPublish, type PublishCheck } from "@survey/survey-logic";
 import mongoose, { Types, type ClientSession } from "mongoose";
 import type { AppEnv } from "../config/env.js";
 import { ApiError, validationError } from "../errors/api-error.js";
@@ -15,6 +16,7 @@ import {
   type RawReplaceQuestion,
   type SurveyQuestion,
 } from "./questions.js";
+import { normalizeJumpRules, type RawJumpRule } from "./jumps.js";
 
 interface VersionSummary {
   id: string;
@@ -336,6 +338,31 @@ export class SurveyService {
       questionId,
       (questions, index) => {
         const current = questions[index!];
+        const retainedIds = new Set(
+          input.options.flatMap((option) =>
+            option.optionId ? [option.optionId] : [],
+          ),
+        );
+        const references = current!.jumpRules
+          .filter((rule) => {
+            const values = Array.isArray(rule.value)
+              ? rule.value
+              : [rule.value];
+            return values.some(
+              (value) =>
+                typeof value === "string" &&
+                current!.options.some((option) => option.optionId === value) &&
+                !retainedIds.has(value),
+            );
+          })
+          .map((rule) => ({
+            questionId: current!.questionId,
+            ruleId: rule.ruleId,
+          }));
+        if (references.length)
+          throw new ApiError(409, "OPTION_REFERENCED", "选项仍被跳转规则引用", {
+            references,
+          });
         const replacement = normalizeQuestion(
           current!.type,
           input,
@@ -362,8 +389,88 @@ export class SurveyService {
       versionId,
       revision,
       questionId,
-      (questions, index) =>
-        questions.filter((_question, position) => position !== index),
+      (questions, index) => {
+        const references = questions.flatMap((question) =>
+          question.questionId === questionId
+            ? []
+            : question.jumpRules
+                .filter((rule) => rule.targetQuestionId === questionId)
+                .map((rule) => ({
+                  questionId: question.questionId,
+                  ruleId: rule.ruleId,
+                })),
+        );
+        if (references.length)
+          throw new ApiError(
+            409,
+            "QUESTION_REFERENCED",
+            "题目仍被跳转规则引用",
+            { references },
+          );
+        return questions.filter((_question, position) => position !== index);
+      },
+    );
+  }
+
+  updateJumpRules(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    questionId: string,
+    revision: number,
+    rules: RawJumpRule[],
+  ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
+    return this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      revision,
+      questionId,
+      (questions, index) => {
+        const source = questions[index!]!;
+        const jumpRules = normalizeJumpRules(
+          source,
+          questions,
+          rules,
+          this.env.jumpRuleMaxPerQuestion,
+        );
+        return questions.map((question, position) =>
+          position === index ? { ...question, jumpRules } : question,
+        );
+      },
+    );
+  }
+
+  async validateDraft(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    revision: number,
+    now = new Date(),
+  ): Promise<PublishCheck> {
+    const survey = await SurveyModel.exists({ _id: surveyId, ownerId });
+    if (!survey) throw this.notFound();
+    const version = (await SurveyVersionModel.findOne({
+      _id: versionId,
+      surveyId,
+    })
+      .lean()
+      .exec()) as LeanVersion | null;
+    if (!version) throw this.notFound();
+    if (version.status !== "draft")
+      throw new ApiError(409, "VERSION_NOT_EDITABLE", "目标版本不可编辑");
+    if (version.revision !== revision)
+      throw new ApiError(409, "DRAFT_CONFLICT", "草稿已在其他页面修改", {
+        currentRevision: version.revision,
+      });
+    return validateForPublish(
+      {
+        revision: version.revision,
+        deadline: version.deadline,
+        questions: version.questions as SurveyQuestion[],
+      },
+      now,
+      this.env.jumpRuleMaxPerQuestion,
     );
   }
 

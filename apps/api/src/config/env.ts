@@ -60,6 +60,7 @@ export interface AppEnv {
   surveyMaxPerUser: number;
   surveyWriteRateLimit: number;
   surveyWriteRateWindowMs: number;
+  jumpRuleMaxPerQuestion: number;
 }
 
 export function loadEnv(
@@ -77,6 +78,13 @@ export function loadEnv(
     : /^\d+$/.test(trustProxyRaw)
       ? Number(trustProxyRaw)
       : trustProxyRaw;
+  const jumpRuleMaxPerQuestion = integer(
+    source,
+    "JUMP_RULE_MAX_PER_QUESTION",
+    20,
+  );
+  if (jumpRuleMaxPerQuestion > 100)
+    throw new Error("JUMP_RULE_MAX_PER_QUESTION 必须是 1 至 100 之间的整数");
   return Object.freeze({
     apiPort,
     webOrigin: required(source, "WEB_ORIGIN", "http://localhost:5173"),
@@ -102,6 +110,7 @@ export function loadEnv(
       "SURVEY_WRITE_RATE_WINDOW_MS",
       60_000,
     ),
+    jumpRuleMaxPerQuestion,
   });
 }
 

@@ -4,6 +4,7 @@ import { requireCurrentUser } from "../auth/current-user.js";
 import type { AuthDependencies } from "../auth/router.js";
 import { validationError } from "../errors/api-error.js";
 import { SurveyCursorService } from "./cursor.js";
+import { parseJumpRulesUpdate } from "./jumps.js";
 import {
   parseCreateQuestion,
   parseQuestionOrder,
@@ -163,6 +164,39 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
           input.revision,
           input.questionIds,
         ),
+      );
+    },
+  );
+  router.put(
+    "/:surveyId/versions/:versionId/questions/:questionId/jump-rules",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const questionId = validQuestionId(request.params.questionId!);
+      const input = parseJumpRulesUpdate(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.updateJumpRules(
+          user._id,
+          surveyId,
+          versionId,
+          questionId,
+          input.revision,
+          input.rules,
+        ),
+      );
+    },
+  );
+  router.post(
+    "/:surveyId/versions/:versionId/validate",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId");
+      const versionId = validId(request.params.versionId!, "versionId");
+      const revision = parseRevision(request.body);
+      response.json(
+        await service.validateDraft(user._id, surveyId, versionId, revision),
       );
     },
   );

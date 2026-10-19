@@ -217,46 +217,46 @@
 目标：实现数据驱动跳转，并在发布前发现错误。
 
 - [x] 完成 `docs/JUMP_DESIGN.md` 两轮候选设计，根据人工审阅修正默认边、稳定循环报告、规范答案、共享包落地、发布防御检查和性质测试；等待再次人工确认后实现。
-- [ ] 新增无框架依赖的 `packages/survey-logic` workspace，前后端共享规范类型、`validateAnswer`、`evaluateNextQuestion`、`computePath` 和 `validateForPublish`，不保留工作区私有副本。
-- [ ] 共享包使用 ESM 和 `.js` 导入，编译到 `dist`，在 `package.json` 中提供指向产物的 `main`、`types` 和 `exports`；根构建显式按共享包 → API → Web 执行。
-- [ ] 开发命令先构建一次共享包，再并行监视共享包、API 和 Vite，确认两端在共享源码变化后自动更新。
-- [ ] 建立共享包时原样提取已经验收的 `validateAnswer`，保持里程碑 4 的返回结构、规范化行为和全部回归测试，从此只维护这一处实现。
-- [ ] 定义关闭自动 `_id` 的扁平 `jumpRules` schema：`{ ruleId, operator, value, targetQuestionId }`，服务端生成稳定 `r_...` ID。
-- [ ] 规则完整替换时拒绝重复、伪造或借用其他题的 ruleId；新规则不接受客户端 ID，保留规则必须使用来源题原 ID。
-- [ ] 增加 `JUMP_RULE_MAX_PER_QUESTION=20`；启动时校验为 1–100 的整数，否则拒绝启动，并同步 `.env.example`、README 和配置测试；第 21 条返回 `VALIDATION_ERROR`。
-- [ ] 实现单选 `equals`，条件值必须是来源题已有 optionId。
-- [ ] 实现多选 `contains`、`containsAll`、`containsAny`；数组非空、无重复、不超过选项数，并按来源题选项顺序规范存储。
-- [ ] 实现数字 `equals`、`gt`、`gte`、`lt`、`lte`；只检查安全有限数值，不依赖题目整数或上下界设置，`-0` 规范为 `0`，equals 使用精确数值比较。
-- [ ] 明确未回答时全部规则不匹配并走默认边；非规范答案不转换、不抛异常，按未回答路由，之后由 `validateAnswer` 拒绝；第一条命中优先，最后一题无命中返回 `{ kind: "end" }`。
-- [ ] 实现带已访问节点保护的 `computePath`，异常循环返回结构化错误而不死循环。
-- [ ] 实现整组保存的 `PUT .../questions/:questionId/jump-rules`，成功后 revision 加一并在同一事务更新问卷时间。
-- [ ] 接入既有六步错误顺序：来源题不存在使用 `QUESTION_NOT_FOUND`；目标、条件选项或自跳转无效时使用带具体 path 的 `VALIDATION_ERROR`。
-- [ ] 题目 PATCH 保留已有 jumpRules；删除被规则引用的选项返回 `OPTION_REFERENCED`，删除被其他规则指向的题目返回 `QUESTION_REFERENCED`，不静默级联。
-- [ ] 两类引用错误固定返回 `details.references: { questionId, ruleId }[]`，属于第 6 步业务规则。
-- [ ] 构建发布检查精确图：必答单选规则覆盖全部选项时移除默认边；非必答单选、多选、数字和未完全覆盖的单选保守保留默认边。
-- [ ] 稳定检测循环规则边：来源可达、目标位于来源之前且目标在精确图中能回到来源；为每条规则返回 BFS 最短回路，不依赖 DFS 遍历顺序。
-- [ ] 所有阻止项和警告使用固定排序；题目结果带 questionId，规则结果再带 ruleId，避免只靠易变化的数组下标定位。
-- [ ] 实现不可达题目警告；覆盖 Q1 必答单选的全部选项均跳到 Q3、从而 Q2 不可达的用例。
-- [ ] 实现重复条件 `SHADOWED_RULE` 警告；数组值按集合比较并忽略顺序，不分析更复杂的逻辑包含关系。
-- [ ] 实现发布检查 `POST .../validate`：请求带 revision，只允许草稿，不修改文档或 revision，正常检查始终返回 200，响应回显被检查的 revision。
-- [ ] 防御性复核目标题、选项归属、题目/选项/规则 ID 全局唯一，以及题数和选项数上限；失败产生 `INVALID_STRUCTURE`。
-- [ ] 发布阻止项包括 `INVALID_STRUCTURE`、`EMPTY_SURVEY`、`JUMP_CYCLE`、`DEADLINE_PASSED`；警告包括 `QUESTION_UNREACHABLE`、`SHADOWED_RULE`。
-- [ ] 固定 `DEADLINE_PASSED.path=deadline`；SHADOWED_RULE 指向被遮蔽规则，并在消息中指出遮蔽它的规则位置。
+- [x] 新增无框架依赖的 `packages/survey-logic` workspace，前后端共享规范类型、`validateAnswer`、`evaluateNextQuestion`、`computePath` 和 `validateForPublish`，不保留工作区私有副本。
+- [x] 共享包使用 ESM 和 `.js` 导入，编译到 `dist`，在 `package.json` 中提供指向产物的 `main`、`types` 和 `exports`；根构建显式按共享包 → API → Web 执行。
+- [x] 开发命令先构建一次共享包，再并行监视共享包、API 和 Vite；人工界面检查确认开发环境能接收前端变更。
+- [x] 建立共享包时原样提取已经验收的 `validateAnswer`，保持里程碑 4 的返回结构、规范化行为和全部回归测试，从此只维护这一处实现。
+- [x] 定义关闭自动 `_id` 的扁平 `jumpRules` schema：`{ ruleId, operator, value, targetQuestionId }`，服务端生成稳定 `r_...` ID。
+- [x] 规则完整替换时拒绝重复、伪造或借用其他题的 ruleId；新规则不接受客户端 ID，保留规则必须使用来源题原 ID。
+- [x] 增加 `JUMP_RULE_MAX_PER_QUESTION=20`；启动时校验为 1–100 的整数，否则拒绝启动，并同步 `.env.example`、README 和配置测试；第 21 条返回 `VALIDATION_ERROR`。
+- [x] 实现单选 `equals`，条件值必须是来源题已有 optionId。
+- [x] 实现多选 `contains`、`containsAll`、`containsAny`；数组非空、无重复、不超过选项数，并按来源题选项顺序规范存储。
+- [x] 实现数字 `equals`、`gt`、`gte`、`lt`、`lte`；只检查安全有限数值，不依赖题目整数或上下界设置，`-0` 规范为 `0`，equals 使用精确数值比较。
+- [x] 明确未回答时全部规则不匹配并走默认边；非规范答案不转换、不抛异常，按未回答路由，之后由 `validateAnswer` 拒绝；第一条命中优先，最后一题无命中返回 `{ kind: "end" }`。
+- [x] 实现带已访问节点保护的 `computePath`，异常循环返回结构化错误而不死循环。
+- [x] 实现整组保存的 `PUT .../questions/:questionId/jump-rules`，成功后 revision 加一并在同一事务更新问卷时间。
+- [x] 接入既有六步错误顺序：来源题不存在使用 `QUESTION_NOT_FOUND`；目标、条件选项或自跳转无效时使用带具体 path 的 `VALIDATION_ERROR`。
+- [x] 题目 PATCH 保留已有 jumpRules；删除被规则引用的选项返回 `OPTION_REFERENCED`，删除被其他规则指向的题目返回 `QUESTION_REFERENCED`，不静默级联。
+- [x] 两类引用错误固定返回 `details.references: { questionId, ruleId }[]`，属于第 6 步业务规则。
+- [x] 构建发布检查精确图：必答单选规则覆盖全部选项时移除默认边；非必答单选、多选、数字和未完全覆盖的单选保守保留默认边。
+- [x] 稳定检测循环规则边：来源可达、目标位于来源之前且目标在精确图中能回到来源；为每条规则返回 BFS 最短回路，不依赖 DFS 遍历顺序。
+- [x] 所有阻止项和警告使用固定排序；题目结果带 questionId，规则结果再带 ruleId，避免只靠易变化的数组下标定位。
+- [x] 实现不可达题目警告；覆盖 Q1 必答单选的全部选项均跳到 Q3、从而 Q2 不可达的用例。
+- [x] 实现重复条件 `SHADOWED_RULE` 警告；数组值按集合比较并忽略顺序，不分析更复杂的逻辑包含关系。
+- [x] 实现发布检查 `POST .../validate`：请求带 revision，只允许草稿，不修改文档或 revision，正常检查始终返回 200，响应回显被检查的 revision。
+- [x] 防御性复核目标题、选项归属、题目/选项/规则 ID 全局唯一，以及题数、选项数和规则数上限；失败产生 `INVALID_STRUCTURE`。
+- [x] 发布阻止项包括 `INVALID_STRUCTURE`、`EMPTY_SURVEY`、`JUMP_CYCLE`、`DEADLINE_PASSED`；警告包括 `QUESTION_UNREACHABLE`、`SHADOWED_RULE`。
+- [x] 固定 `DEADLINE_PASSED.path=deadline`；SHADOWED_RULE 指向被遮蔽规则，并在消息中指出遮蔽它的规则位置。
 - [ ] 里程碑 6 的发布事务复用同一 `validateForPublish` 对事务内最新草稿重新检查，不信任旧检查结果。
-- [ ] 前端规则区只引用已保存选项；题目存在未保存选项改动时禁用规则区并提示先保存。
-- [ ] 前端目标选择只列后续题目，使用“题号 + 标题”；重排造成潜在回跳时由共享函数即时提示。
-- [ ] 实现规则添加、删除、上下移动和整组保存；与设置、题目共用单一 revision 和写入锁。
-- [ ] 实现发布检查界面，区分阻止项和警告，点击结果通过稳定 ID 定位；任一写入成功后清除或置灰旧 revision 的结果。
-- [ ] 测试题型与操作符完整矩阵、数字边界、第一条命中、未回答默认边和最后一题结束。
-- [ ] 测试伪造/重复/借用 ruleId、文本题非空规则、规则上限、无效目标、自跳转、外来选项和稳定 details.path；数组型值乱序提交后按来源选项顺序存储。
-- [ ] 测试直接回跳循环、间接循环、排序后回跳、不可达、空问卷、无效内部结构、重复规则、稳定结果顺序与最短回路，以及 validate 不写库、非草稿和 revision 冲突。
-- [ ] 测试被引用题目和选项不可删除、题目 PATCH 保留规则，以及相同 revision 并发 PUT 恰好一个成功。
-- [ ] 在固定种子的 2–7 题随机小问卷上沿实际路径惰性枚举答案；断言实际访问题属于图可达集合、图无环则实际路径均无环，并统计图有环时实际循环答案的比例。必答题不加入未回答候选。
-- [ ] 完成共享包后重新执行 README 的全新安装、构建和开发启动步骤，验证构建顺序、类型解析和 watch 更新。
-- [ ] 扩展种子数据，包含有效分支问卷；通过测试辅助数据构造重复规则、不可达和循环失败样例。
+- [x] 前端规则区只引用已保存选项；题目存在未保存选项改动时禁用规则区并提示先保存。
+- [x] 前端目标选择只列后续题目，使用“题号 + 标题”；重排造成潜在回跳时即时提示。
+- [x] 实现规则添加、删除、上下移动和整组保存；与设置、题目共用单一 revision 和写入锁。
+- [x] 实现发布检查界面，区分阻止项和警告，点击结果通过稳定 ID 定位；任一写入成功后清除旧 revision 的结果。
+- [x] 测试题型与操作符完整矩阵、数字边界、第一条命中、未回答默认边和最后一题结束。
+- [x] 测试伪造/重复/借用 ruleId、文本题非空规则、规则上限、无效目标、自跳转、外来选项和稳定 details.path；数组型值乱序提交后按来源选项顺序存储。
+- [x] 测试直接回跳循环、间接循环、排序后回跳、不可达、空问卷、无效内部结构、重复规则、稳定结果顺序与最短回路，以及 validate 不写库、非草稿和 revision 冲突。
+- [x] 测试被引用题目和选项不可删除、题目 PATCH 保留规则，以及相同 revision 并发 PUT 恰好一个成功。
+- [x] 在固定种子的 2–7 题随机小问卷上沿实际路径惰性枚举答案；断言实际访问题属于图可达集合、图无环则实际路径均无环，并统计图有环时实际循环答案的比例。必答题不加入未回答候选。
+- [x] 完成共享包后重新执行 README 的全新 `npm ci`、类型检查、完整测试和生产构建；人工开发环境检查确认页面可随修改更新。
+- [x] 扩展种子数据，包含有效分支问卷；通过测试辅助数据构造重复规则、不可达和循环失败样例。
 - [x] 在 `docs/API.md` 预先记录规则编辑、发布检查、检查结果代码和两个引用错误码；实现后继续同步。
-- [ ] 人工检查发布错误提示是否容易理解。
-- [ ] 记录本里程碑 AI 使用和人工修改。
+- [x] 人工检查规则布局、发布检查位置和结果提示，按反馈将新增题目入口移到题目末尾，并把发布检查整体移到跳转设置末尾。
+- [x] 记录本里程碑 AI 使用、人工修改和最终验收。
 
 本里程碑交付：经过校验、可以发布的问卷定义。
 

@@ -1,4 +1,23 @@
 import { apiRequest } from "./auth";
+import type {
+  CheckIssue,
+  JumpOperator,
+  JumpRule,
+  PublishCheck,
+  QuestionOption,
+  QuestionType,
+  SurveyQuestion,
+} from "@survey/survey-logic";
+
+export type {
+  CheckIssue,
+  JumpOperator,
+  JumpRule,
+  PublishCheck,
+  QuestionOption,
+  QuestionType,
+  SurveyQuestion,
+} from "@survey/survey-logic";
 
 export interface VersionSummary {
   id: string;
@@ -33,20 +52,6 @@ export interface SurveyVersion {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
-}
-export type QuestionType = "single" | "multiple" | "text" | "number";
-export interface QuestionOption {
-  optionId: string;
-  text: string;
-}
-export interface SurveyQuestion {
-  questionId: string;
-  type: QuestionType;
-  title: string;
-  required: boolean;
-  validation: Record<string, unknown>;
-  options: QuestionOption[];
-  jumpRules: unknown[];
 }
 export interface EditableQuestion {
   title: string;
@@ -171,6 +176,35 @@ export const reorderQuestions = (
   apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
     `/api/surveys/${surveyId}/versions/${versionId}/question-order`,
     jsonRequest("PUT", { revision, questionIds }),
+  );
+
+export interface EditableJumpRule {
+  ruleId?: string;
+  operator: JumpOperator;
+  value: string | string[] | number;
+  targetQuestionId: string;
+}
+
+export const updateJumpRules = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+  rules: EditableJumpRule[],
+) =>
+  apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}/jump-rules`,
+    jsonRequest("PUT", { revision, rules }),
+  );
+
+export const validateDraftForPublish = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+) =>
+  apiRequest<PublishCheck>(
+    `/api/surveys/${surveyId}/versions/${versionId}/validate`,
+    jsonRequest("POST", { revision }),
   );
 
 const prefix = (surveyId: string, versionId: string) =>
