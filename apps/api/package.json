@@ -12,7 +12,9 @@
     "seed": "tsx src/scripts/seed.ts",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
     "statistics:benchmark": "tsx src/scripts/statistics-benchmark.ts",
-    "statistics:benchmark:clean": "tsx src/scripts/statistics-benchmark.ts --clean"
+    "statistics:benchmark:clean": "tsx src/scripts/statistics-benchmark.ts --clean",
+    "survey-list:benchmark": "tsx src/scripts/survey-list-benchmark.ts",
+    "survey-list:benchmark:clean": "tsx src/scripts/survey-list-benchmark.ts --clean"
   },
   "dependencies": {
     "@survey/survey-logic": "0.1.0",

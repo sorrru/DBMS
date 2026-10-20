@@ -248,6 +248,30 @@ describe("fill session creation and recovery", () => {
     expect(resumed.body.version.questions[0].questionId).toBe("q_text");
   });
 
+  it("derives a different anonymous ownerKey for the same account in different surveys", async () => {
+    const owner = await user("Owner");
+    const respondent = await user("Respondent");
+    const first = await publishedSurvey(owner._id, { publicId: "owner_key_a" });
+    const second = await publishedSurvey(owner._id, {
+      publicId: "owner_key_b",
+    });
+    const firstSession = await start(first.publicId, respondent._id).expect(
+      201,
+    );
+    const secondSession = await start(second.publicId, respondent._id).expect(
+      201,
+    );
+    const sessions = await FillSessionModel.find({
+      _id: {
+        $in: [firstSession.body.session.id, secondSession.body.session.id],
+      },
+    })
+      .sort({ surveyId: 1 })
+      .lean();
+    expect(sessions).toHaveLength(2);
+    expect(sessions[0]!.ownerKey).not.toBe(sessions[1]!.ownerKey);
+  });
+
   it("stores userId only for identified sessions", async () => {
     const owner = await user("Owner");
     const respondent = await user("Respondent");
@@ -331,6 +355,32 @@ describe("fill session creation and recovery", () => {
     expect(
       responses.find(({ status }) => status === 409)?.body.error.code,
     ).toBe("SESSION_LIMIT_REACHED");
+  });
+
+  it("releases expired active slots before creating another session", async () => {
+    const owner = await user("Owner");
+    const respondent = await user("Respondent");
+    const survey = await publishedSurvey(owner._id);
+    for (let index = 0; index < 5; index += 1)
+      await start(survey.publicId, respondent._id).expect(201);
+    now = new Date(now.getTime() + 30 * 60_000);
+    const replacement = await start(survey.publicId, respondent._id).expect(
+      201,
+    );
+    expect(replacement.body.session.status).toBe("active");
+    expect(
+      await FillSessionModel.countDocuments({
+        surveyId: survey.surveyId,
+        status: "expired",
+        activeSlot: null,
+      }),
+    ).toBe(5);
+    expect(
+      await FillSessionModel.countDocuments({
+        surveyId: survey.surveyId,
+        status: "active",
+      }),
+    ).toBe(1);
   });
 
   it("uses the bound old-version deadline after a newer version is published", async () => {

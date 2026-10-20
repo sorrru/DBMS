@@ -115,10 +115,11 @@ async function response(
   path: string[],
   answers: Array<{ questionId: string; value: string | string[] | number }>,
   respondentId?: Types.ObjectId,
+  targetVersionId = versionId,
 ) {
   return SurveyResponseModel.create({
     surveyId,
-    surveyVersionId: versionId,
+    surveyVersionId: targetVersionId,
     fillSessionId: new Types.ObjectId(),
     ownerKey: `owner-${new Types.ObjectId()}`,
     questionPath: path,
@@ -291,6 +292,87 @@ describe("creator statistics", () => {
       minimum: null,
       maximum: null,
     });
+  });
+
+  it("keeps totals, options, and text responses isolated between versions", async () => {
+    const secondVersionId = new Types.ObjectId();
+    await SurveyVersionModel.create({
+      _id: secondVersionId,
+      surveyId,
+      versionNumber: 2,
+      status: "published",
+      revision: 1,
+      title: "统计样例 v2",
+      description: "",
+      identityMode: "anonymous",
+      allowMultipleSubmissions: true,
+      deadline: null,
+      sessionDurationMinutes: 30,
+      questions,
+      schemaVersion: 1,
+      publishedAt: now,
+    });
+    await SurveyModel.updateOne(
+      { _id: surveyId },
+      { currentVersionId: secondVersionId },
+    );
+    await response(
+      "2027-01-04T04:05:06.444Z",
+      ["q_single", "q_text", "q_multi", "q_num"],
+      [
+        { questionId: "q_single", value: "o_b" },
+        { questionId: "q_text", value: "只属于第二版" },
+        { questionId: "q_num", value: 99 },
+      ],
+      undefined,
+      secondVersionId,
+    );
+    const [firstStats, secondStats, firstText, secondText] = await Promise.all([
+      request(app)
+        .get(`/api/surveys/${surveyId}/versions/${versionId}/statistics`)
+        .set("Cookie", cookie(ownerId)),
+      request(app)
+        .get(`/api/surveys/${surveyId}/versions/${secondVersionId}/statistics`)
+        .set("Cookie", cookie(ownerId)),
+      request(app)
+        .get(
+          `/api/surveys/${surveyId}/versions/${versionId}/responses?questionId=q_text`,
+        )
+        .set("Cookie", cookie(ownerId)),
+      request(app)
+        .get(
+          `/api/surveys/${surveyId}/versions/${secondVersionId}/responses?questionId=q_text`,
+        )
+        .set("Cookie", cookie(ownerId)),
+    ]);
+    expect([
+      firstStats.status,
+      secondStats.status,
+      firstText.status,
+      secondText.status,
+    ]).toEqual([200, 200, 200, 200]);
+    expect(firstStats.body.submissionCount).toBe(3);
+    expect(firstStats.body.questions[0].options).toMatchObject([
+      { optionId: "o_a", count: 2 },
+      { optionId: "o_b", count: 1 },
+    ]);
+    expect(
+      firstText.body.items.map((item: { value: string }) => item.value),
+    ).toEqual(["第三条", "第一条\n回答"]);
+    expect(secondStats.body.submissionCount).toBe(1);
+    expect(secondStats.body.questions[0].options).toMatchObject([
+      { optionId: "o_a", count: 0 },
+      { optionId: "o_b", count: 1 },
+    ]);
+    expect(secondStats.body.questions[3].number).toMatchObject({
+      count: 1,
+      average: 99,
+      minimum: 99,
+      maximum: 99,
+    });
+    expect(secondText.body.items).toEqual([
+      { value: "只属于第二版", submittedDate: "2027-01-04" },
+    ]);
   });
 
   it("paginates anonymous text without exact time, ids, or readable cursor data", async () => {

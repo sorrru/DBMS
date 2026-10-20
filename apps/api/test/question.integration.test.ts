@@ -569,4 +569,73 @@ describe("question API", () => {
       .expect(409);
     expect(published.body.error.code).toBe("VERSION_NOT_EDITABLE");
   });
+
+  it("rejects every draft mutation and publication action for a published version", async () => {
+    const created = await add({
+      revision: 1,
+      type: "text",
+      title: "不可变问题",
+      validation: {},
+      options: [],
+    }).expect(201);
+    const questionId = created.body.questionId as string;
+    await SurveyVersionModel.updateOne(
+      { _id: versionId },
+      { $set: { status: "published", publishedAt: new Date() } },
+    );
+    const calls = [
+      auth(
+        request(app).patch(`/api/surveys/${surveyId}/versions/${versionId}`),
+      ).send({ revision: 2, title: "不能修改" }),
+      add({
+        revision: 2,
+        type: "text",
+        title: "不能新增",
+        validation: {},
+        options: [],
+      }),
+      auth(
+        request(app).patch(
+          `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}`,
+        ),
+      ).send({
+        revision: 2,
+        title: "不能替换",
+        required: false,
+        validation: {},
+        options: [],
+      }),
+      auth(
+        request(app).delete(
+          `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}`,
+        ),
+      ).send({ revision: 2 }),
+      auth(
+        request(app).put(
+          `/api/surveys/${surveyId}/versions/${versionId}/question-order`,
+        ),
+      ).send({ revision: 2, questionIds: [questionId] }),
+      auth(
+        request(app).put(
+          `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}/jump-rules`,
+        ),
+      ).send({ revision: 2, rules: [] }),
+      auth(
+        request(app).post(
+          `/api/surveys/${surveyId}/versions/${versionId}/validate`,
+        ),
+      ).send({ revision: 2 }),
+      auth(
+        request(app).post(
+          `/api/surveys/${surveyId}/versions/${versionId}/publish`,
+        ),
+      ).send({ revision: 2, acknowledgeWarnings: false }),
+    ];
+    const results = await Promise.all(calls);
+    expect(results).toHaveLength(8);
+    for (const result of results) {
+      expect(result.status).toBe(409);
+      expect(result.body.error.code).toBe("VERSION_NOT_EDITABLE");
+    }
+  });
 });
