@@ -340,20 +340,34 @@
 目标：服务端可信地验证并保存正式回答。
 
 - [ ] 定义 `responses` schema 和索引。
+- [ ] 完成 `docs/RESPONSE_SUBMISSION_DESIGN.md` 候选设计与人工复核，确认幂等优先级、先认证后解析、路径外答案和事务写入顺序后再实现。
+- [ ] responses 保存 surveyId、surveyVersionId、fillSessionId、内部 ownerKey、可选 dedupKey/respondentId、真实 questionPath、ignoredQuestionIds、规范 answers 和 submittedAt；匿名不写 respondentId。
+- [ ] 建立 fillSessionId 唯一索引、`surveyVersionId + dedupKey` 字符串条件唯一索引和 `surveyVersionId + submittedAt + _id` 分页索引，并用 listIndexes 断言结构。
 - [ ] 为提交路由设置独立的 4 MiB 原始 JSON 上限，其他 API 继续保持 256 KiB；覆盖最大合法答案集、超限 413 和解析顺序测试。
+- [ ] 提交中间件按 Origin → Content-Type → 登录 → 双 Cookie 所有权 → 已提交幂等 → 账号/会话限流 → 状态 → 4 MiB 解析排列；未认证超大正文不得先解析。
+- [ ] 增加提交账号和会话限流配置、启动校验、Retry-After、窗口恢复与容量测试。
 - [ ] 后端重新计算真实 `questionPath`。
 - [ ] 只校验实际路径上的题目。
 - [ ] 忽略并不保存路径外答案。
 - [ ] 返回 `ignoredQuestionIds`。
+- [ ] 路径外只要求 questionId 已知并通过通用 JSON 结构预检，不做题型和值域校验；未知或重复 ID、未知字段和非法原始形态返回带稳定 path 的 VALIDATION_ERROR。
+- [ ] ANSWER_VALIDATION_FAILED 一次返回全部路径内 issues；每项含 questionId、机器 code、原请求 path 和 message，并按真实路径稳定排序。
 - [ ] 保存问卷版本和真实路径。
 - [ ] 匿名版本不保存 UID，但在内部回答记录保存 `ownerKey`；创建者接口不得返回该字段。
 - [ ] 非匿名版本保存填写者账号。
 - [ ] 禁止重复时写入 `dedupKey=ownerKey`；匿名和实名均使用同一个按问卷稳定、不含版本 ID 的键。条件唯一索引固定为 `(surveyVersionId, dedupKey)`，因此同一账号仍可分别提交 v1 和 v2。
 - [ ] 允许重复时支持同一用户多次提交。
 - [ ] 使用带条件的原子操作只把未过期的 `active` 会话转换为 `submitted`，写入 `submittedAt`；`submitted` 或有效状态为 `expired` 的会话不能再次提交。
+- [ ] 幂等判定在关闭、截止、会话到期与正文解析前；所有权通过的 submitted 会话按 fillSessionId 返回原结果，不比较重试正文，首次与幂等成功都用相同 Path 清除 survey_fill Cookie。
+- [ ] 提交事务先条件更新会话并释放 activeSlot，再插入 response；事务重试回调重取 now，两个写入使用同一 submittedAt。
+- [ ] 在会话更新后、回答插入后注入失败并验证完全回滚；条件更新未命中只分类为幂等成功或 SESSION_EXPIRED，不增加不可达冲突码。
 - [ ] 验证并发提交只能产生合法记录。
 - [ ] 分别验证匿名和非匿名版本的条件唯一索引，并验证同一用户仍可各提交 v1 和 v2 一次。
 - [ ] 验证关闭、到期和会话过期后拒绝提交。
+- [ ] 验证已成功提交在到期或关闭后重试仍返回同一 submission.id；同会话并发请求最终也得到同一结果。
+- [ ] 多选答案按题目选项顺序保存；fillSessionId 允许在会话 TTL 清理后悬空，response 永久有效。
+- [ ] 前端复核页增加提交、提交中锁定、成功页、幂等提示和第一项 issues 定位；成功清除本地草稿，校验或网络失败保留。
+- [ ] 种子数据加入匿名、实名、分支路径、允许与禁止重复的既有回答，供里程碑 9 核算；匿名统计以后只展示粗粒度提交日期。
 - [ ] 在 `docs/API.md` 追加提交成功、路径外答案、重复提交、会话状态冲突和错误码。
 - [ ] 人工检查数据库中的匿名回答结构。
 - [ ] 记录本里程碑 AI 使用和人工修改。

@@ -174,12 +174,15 @@ MongoDB
   "dedupKey": "禁止重复时写入",
   "respondentId": "仅非匿名版本写入",
   "questionPath": ["q1", "q3", "q5"],
+  "ignoredQuestionIds": ["q2"],
   "answers": [{ "questionId": "q1", "value": "option_a" }],
   "submittedAt": "Date"
 }
 ```
 
 创建者读取匿名版本回答时，API 删除 `ownerKey`、`dedupKey`、`fillSessionId` 和其他身份相关字段。
+
+`fillSessionId` 是一次提交的唯一性锚点；填写会话会在七天后由 TTL 清理，因此该引用允许悬空，正式回答仍永久保存。正式提交使用事务先条件更新 active 会话、再插入回答；完整结构、幂等顺序和错误语义见 `RESPONSE_SUBMISSION_DESIGN.md`。
 
 ## 嵌套设计
 
@@ -426,8 +429,9 @@ v1 保留历史回答与统计
 | fill_sessions   | `{ surveyId, ownerKey, activeSlot }` 条件唯一，仅 active            |
 | fill_sessions   | `{ surveyId, ownerKey, status, expiresAt }`                         |
 | fill_sessions   | `purgeAt` TTL，`expireAfterSeconds: 0`                              |
-| responses       | `surveyVersionId + submittedAt`                                     |
+| responses       | `{ surveyVersionId, submittedAt: -1, _id: -1 }`                     |
 | responses       | `surveyVersionId + dedupKey` 条件唯一                               |
+| responses       | `fillSessionId` 唯一                                                |
 
 ## 测试设计
 

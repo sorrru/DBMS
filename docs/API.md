@@ -491,13 +491,75 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 同时需要登录 Cookie 和动态 Path 的填写 Cookie。成功返回与创建接口相同的 session、serverNow 和版本白名单，用于刷新或重新登录后的恢复。会话/令牌不存在、令牌属于另一会话、当前账号不是创建者均统一返回 `SESSION_NOT_FOUND`。随后按手工关闭、绑定版本截止、会话 30 分钟到期判定。旧会话使用自己绑定版本的 deadline，不使用当前版本截止时间。
 
-填写令牌永不出现在路径或 JSON 中。后续提交路径固定为 `POST /api/public/sessions/:sessionId/submit`，在里程碑 8 实现。
+填写令牌永不出现在路径或 JSON 中。
+
+### `POST /api/public/sessions/:sessionId/submit`（里程碑 8 待实现）
+
+同时需要登录 Cookie 和动态 Path 的填写 Cookie。请求只允许：
+
+```json
+{
+  "answers": [
+    { "questionId": "q_1", "value": "option_a" },
+    { "questionId": "q_3", "value": "文本回答" }
+  ]
+}
+```
+
+answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 value。value 的结构只允许字符串、有限数值、最多 50 项的字符串数组或 null。未知或重复题目 ID、未知字段和非法原始类型返回 `VALIDATION_ERROR`，details.path 指向原请求下标。
+
+该接口先执行 Origin、Content-Type、登录与会话所有权检查，再处理已提交会话的幂等返回、账号/会话限流和关闭/截止/会话到期，最后才用独立 4 MiB 解析器读取正文。全局 256 KiB 解析器跳过本路径；未认证的超大请求返回 401 而不是 413。
+
+服务端不接受客户端路径，从第一题开始重新计算真实 questionPath。只校验路径内答案；跳过的必答题不要求回答。已知但位于路径外的答案只经过通用 JSON 结构预检，不执行题型和值域校验，不保存；响应按版本题目顺序返回 ignoredQuestionIds。未知题目 ID 始终拒绝。多选答案按版本选项顺序保存。
+
+路径内校验错误一次返回，按真实路径顺序排列：
+
+```json
+{
+  "error": {
+    "code": "ANSWER_VALIDATION_FAILED",
+    "message": "部分回答不符合要求",
+    "details": {
+      "issues": [
+        {
+          "questionId": "q_3",
+          "code": "REQUIRED",
+          "path": "",
+          "message": "此题为必答题"
+        }
+      ]
+    }
+  }
+}
+```
+
+存在请求项时 path 使用 `answers[n].value`；完全缺失的必答题 path 为空。code 是稳定机器码，包含 REQUIRED、TYPE_MISMATCH、UNKNOWN_OPTION、DUPLICATE_SELECTION、SELECTION_COUNT、TOO_SHORT、TOO_LONG、DIGITS_ONLY、OUT_OF_RANGE 和 NOT_INTEGER。
+
+首次成功返回 201：
+
+```json
+{
+  "submission": {
+    "id": "response ObjectId",
+    "submittedAt": "2026-10-20T14:30:00.000Z",
+    "versionId": "version ObjectId",
+    "questionPath": ["q_1", "q_3"],
+    "ignoredQuestionIds": ["q_2"],
+    "alreadySubmitted": false
+  }
+}
+```
+
+所有权验证后若会话已经 submitted，服务在检查关闭、截止、会话到期和解析正文之前，按 fillSessionId 返回第一次保存的结果，状态为 200、alreadySubmitted 为 true；不读取或比较重试正文。首次和幂等成功都用与创建时相同的 Cookie Name 和 Path 清除 survey_fill，设置 Max-Age=0。
+
+事务内每次重试重新取得 now，先用 active 与 expiresAt 条件把会话更新为 submitted、清空 activeSlot，再插入 response。两个写入使用相同 submittedAt；任何失败完全回滚。禁止重复由 `(surveyVersionId,dedupKey)` 条件唯一索引保证，同会话唯一性由 fillSessionId 唯一索引保证。完整约定见 `RESPONSE_SUBMISSION_DESIGN.md`。
 
 ## 稳定错误码
 
 | HTTP | 错误码                         | 含义                                                       |
 | ---: | ------------------------------ | ---------------------------------------------------------- |
 |  400 | `VALIDATION_ERROR`             | 字段类型、规则或 JSON 格式错误                             |
+|  400 | `ANSWER_VALIDATION_FAILED`     | 真实路径上的一个或多个回答不符合题目规则                   |
 |  401 | `AUTH_REQUIRED`                | 未提供登录 Cookie                                          |
 |  401 | `AUTH_INVALID`                 | 登录令牌或对应用户无效                                     |
 |  401 | `INVALID_CREDENTIALS`          | 用户名或密码错误                                           |
@@ -523,12 +585,13 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 |  409 | `SURVEY_EXPIRED`               | 会话绑定版本的截止时间已到                                 |
 |  409 | `SESSION_EXPIRED`              | 填写会话自身的 30 分钟期限已到                             |
 |  409 | `SESSION_LIMIT_REACHED`        | 同一账号在同一问卷已有五个活动会话                         |
-|  409 | `ALREADY_SUBMITTED`            | 禁止重复时当前 ownerKey 已向该版本提交；里程碑 8 接入      |
-|  413 | `PAYLOAD_TOO_LARGE`            | JSON 请求体超过 256 KiB                                    |
+|  409 | `ALREADY_SUBMITTED`            | 禁止重复时当前 ownerKey 已向该版本提交                     |
+|  409 | `SURVEY_VERSION_INVALID`       | 发布版本内部结构损坏，无法可信计算提交路径                 |
+|  413 | `PAYLOAD_TOO_LARGE`            | 普通 JSON 超过 256 KiB，或提交正文超过 4 MiB               |
 |  415 | `UNSUPPORTED_MEDIA_TYPE`       | 带请求体的接口未使用 `application/json`                    |
 |  429 | `RATE_LIMITED`                 | 请求超过限流；响应含 `Retry-After`                         |
 |  500 | `INTERNAL_ERROR`               | 未预期服务错误，不向客户端暴露内部信息                     |
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期和正式提交前的公开填写会话均已实现。公开填写包含摘要、创建与恢复三个接口；正式回答提交和统计尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期和正式提交前的公开填写会话均已实现并验收。正式回答提交已完成设计、尚未编码；统计尚未开始。
