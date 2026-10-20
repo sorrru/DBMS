@@ -49,6 +49,8 @@ v1 默认值：
 
 `publicId` 使用至少 128 位随机值和 URL 安全编码。数据库唯一索引是最终保障；随机碰撞实际可忽略，不在事务内部局部重试。重复键等写入错误会使整个事务中止，不能留下孤立文档。
 
+里程碑 7 将稳定公开页面路径固定为 `/fill/:publicId`；早期候选中的 `/survey/:publicId` 不再使用。发布新版本只切换当前版本指针，不改变 publicId 或公开链接。
+
 事务开始前必须完成 `SurveyModel.init()` 和 `SurveyVersionModel.init()`，不能在事务内临时建索引。`survey_versions` 建立 `{ surveyId: 1, status: 1 }` 条件唯一索引，仅对 `status: "draft"` 生效，保证每份问卷最多一个草稿。事务内每一次读取和写入都必须显式传递同一个 session。强制失败注入只通过测试依赖提供，生产构建不暴露开关、环境变量或 HTTP 入口。
 
 ## 创建数量与写入限流

@@ -305,23 +305,31 @@
 
 目标：登录用户能够通过公开链接填写固定版本。
 
-- [ ] 定义 `fill_sessions` schema 和 TTL 索引。
-- [ ] 定义会话状态机：创建后为 `active`；成功提交原子转换为 `submitted`；`active` 且超过 `expiresAt` 时有效状态为 `expired`；三种有效状态均不可逆。
-- [ ] 实现公开问卷摘要。
-- [ ] 实现 30 分钟填写会话。
-- [ ] 使用不可逆令牌摘要保存会话令牌。
-- [ ] 确保填写会话令牌不进入 `localStorage` 或 `sessionStorage`，只保存非凭据的可恢复答案草稿。
-- [ ] 决定并测试两小时登录在最长 30 分钟填写过程中到期时的续填、重新认证和提交规则。
-- [ ] 实现按问卷生成的匿名标识：`respondentKey = HMAC(ANONYMOUS_ID_SECRET, surveyId + userId)`，不加入版本 ID，保证同一问卷内稳定、不同问卷间不可关联。
-- [ ] 对创建填写会话接口配置按账号与来源地址组合的限流，并测试达到阈值后的错误码与恢复行为。
-- [ ] 实现逐题填写前端。
-- [ ] 实现客户端路径计算和剩余时间显示。
-- [ ] 修改前题答案时清除路径外答案。
-- [ ] 验证新会话进入最新版本。
-- [ ] 验证旧会话仍固定在旧版本。
-- [ ] 验证关闭或到期后不能创建会话。
-- [ ] 验证同一用户在同一问卷的不同版本中得到相同匿名标识，在不同问卷中得到不同匿名标识。
-- [ ] 在 `docs/API.md` 追加公开摘要、创建会话接口、限流响应和错误码。
+- [ ] 完成 `docs/FILL_SESSION_DESIGN.md` 候选设计与人工复核，确认双 Cookie、不刷新登录 JWT、ownerKey、五活动会话槽位、恢复接口和本地草稿边界后再实现。
+- [ ] 定义 `fill_sessions` schema：固定 survey/version、identityMode、ownerKey、匿名不含 userId、实名含 userId、令牌摘要、状态、activeSlot、三个时间字段与 purgeAt。
+- [ ] 定义不可逆状态机 `active → expired | submitted`；用共享 `computeSessionState` 固定“已提交 → 手工关闭 → 绑定版本截止 → 30 分钟到期 → active”的判定，并用固定时钟覆盖 `<= now` 边界。
+- [ ] 建立 `sessionTokenHash` 唯一索引、`purgeAt` TTL、owner 活动查询索引，以及 `{ surveyId, ownerKey, activeSlot }` 仅 active 的条件唯一索引；用 `listIndexes` 断言完整结构。
+- [ ] 用 0–4 activeSlot 严格限制每账号每问卷最多五个活动会话；惰性写回过期并释放槽位，11000 核对 keyPattern 后有限重试，并发六次创建不能超过五个成功。
+- [ ] 实现 `GET /api/public/surveys/:publicId`；未登录可看白名单摘要，未发布统一 404，关闭和到期返回可解释状态，所有公开响应设置 `Cache-Control: no-store`。
+- [ ] 实现 `POST /api/public/surveys/:publicId/sessions`，只接受 `{}`，要求登录，绑定调用时的当前发布版本并返回 201；不刷新、不续期两小时登录 JWT。
+- [ ] 生成 32 字节随机填写令牌，数据库只保存 SHA-256 摘要；明文只进入 HttpOnly、SameSite=Lax、动态 Path、限时 Max-Age 的 `survey_fill` Cookie，测试生产 Secure 差异。
+- [ ] 实现 `GET /api/public/sessions/:sessionId` 恢复接口；登录 Cookie 与填写 Cookie必须同时有效，会话/令牌/账号不匹配统一 `SESSION_NOT_FOUND`。
+- [ ] 实现 `ownerKey = HMAC(ANONYMOUS_ID_SECRET, "survey-owner:v1\\0" + surveyId + "\\0" + userId)`；同问卷跨版本稳定、跨问卷不同，所有响应隐藏该值，并记录假名化威胁模型与密钥不可直接轮换边界。
+- [ ] 为 `allowMultipleSubmissions=false` 预留基于 `(surveyVersionId, ownerKey)` 的 `ALREADY_SUBMITTED` 服务检查点；里程碑 7 不以会话代替回答，里程碑 8 建立 responses 后接入。
+- [ ] 创建会话固定顺序：请求/Origin → 登录 → 两层限流 → 公开问卷 → 关闭 → 当前版本截止 → 已提交占位 → 会话上限 → 写入；补齐六个会话错误码。
+- [ ] 增加并启动校验三个 `FILL_SESSION_RATE_LIMIT_*` 配置；覆盖账号+IP、IP 总量、Retry-After、窗口恢复、容量封闭失败与测试注入。
+- [ ] 实现 `/fill/:publicId` 和 `/fill/:publicId/session/:sessionId`；登录返回地址只接受规定正则的站内路径，其他值回到默认页。
+- [ ] 匿名模式显示“创建者看不到身份，登录用于防重复”，实名模式明确提示创建者将看到账号；创建者页面显示并可复制 `/fill/:publicId`。
+- [ ] 实现一次一题、题下错误、按真实已走路径上一题，以及“第 n 题（最多 N 题）”；文本不用 maxlength，数字空串与非有限数值按共享语义处理。
+- [ ] 使用共享 `validateAnswer`、`evaluateNextQuestion` 和 `computePath`；修改前题答案时立即清除新路径外答案，最终进入未正式提交的回答检查页。
+- [ ] 倒计时用 serverNow 与 `performance.now()` 计算单调经过时间，并显示会话到期与绑定版本截止的较早值；服务端时间始终是最终判定。
+- [ ] 非凭据答案防抖写入 `sessionStorage`，令牌和 ownerKey 永不写入；捕获配额错误并把序列化草稿限制为 2 MiB。
+- [ ] 恢复本地草稿前先验证会话，把内容当不可信输入：限制大小、丢弃未知题目和错误类型、重新校验与算路径；`SESSION_NOT_FOUND`、到期、放弃或成功提交时清除。
+- [ ] 测试公开/填写响应白名单，匿名数据库文档无 userId，创建者和公开接口不泄露 ownerKey、令牌摘要或内部版本字段。
+- [ ] 测试双 Cookie 完整矩阵、退出/登录过期后同账号恢复、换账号拒绝，以及登录 Cookie未被创建会话续期。
+- [ ] 测试新会话进入最新版本、旧会话固定旧版本、v2 截止但 v3 开放时旧会话仍返回 `SURVEY_EXPIRED`，以及创建与发布/关闭的竞争边界。
+- [ ] 扩展种子数据，提供匿名、实名、关闭、到期和旧版本会话场景，方便人工检查。
+- [ ] 在 `docs/API.md`、SYSTEM_DESIGN、README 和认证/需求决策文档同步公开路径、三个接口、ownerKey、索引、限流与错误码。
 - [ ] 人工检查匿名和非匿名填写流程。
 - [ ] 记录本里程碑 AI 使用和人工修改。
 
@@ -332,14 +340,15 @@
 目标：服务端可信地验证并保存正式回答。
 
 - [ ] 定义 `responses` schema 和索引。
+- [ ] 为提交路由设置独立的 4 MiB 原始 JSON 上限，其他 API 继续保持 256 KiB；覆盖最大合法答案集、超限 413 和解析顺序测试。
 - [ ] 后端重新计算真实 `questionPath`。
 - [ ] 只校验实际路径上的题目。
 - [ ] 忽略并不保存路径外答案。
 - [ ] 返回 `ignoredQuestionIds`。
 - [ ] 保存问卷版本和真实路径。
-- [ ] 匿名版本不保存 UID，但在内部回答记录保存 `respondentKey`；创建者接口不得返回该字段。
+- [ ] 匿名版本不保存 UID，但在内部回答记录保存 `ownerKey`；创建者接口不得返回该字段。
 - [ ] 非匿名版本保存填写者账号。
-- [ ] 禁止重复时写入 `dedupKey`：匿名版本的值就是 `respondentKey`，不含 UID 或其他账号字段；非匿名版本取账号的稳定内部标识。条件唯一索引固定为 `(surveyVersionId, dedupKey)`，因此匿名版本参与索引的身份键只能是问卷内匿名标识。
+- [ ] 禁止重复时写入 `dedupKey=ownerKey`；匿名和实名均使用同一个按问卷稳定、不含版本 ID 的键。条件唯一索引固定为 `(surveyVersionId, dedupKey)`，因此同一账号仍可分别提交 v1 和 v2。
 - [ ] 允许重复时支持同一用户多次提交。
 - [ ] 使用带条件的原子操作只把未过期的 `active` 会话转换为 `submitted`，写入 `submittedAt`；`submitted` 或有效状态为 `expired` 的会话不能再次提交。
 - [ ] 验证并发提交只能产生合法记录。

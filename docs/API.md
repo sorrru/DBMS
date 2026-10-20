@@ -434,6 +434,65 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 发布条件更新、两层创建并发保护、放弃草稿、共享时钟、历史聚合、失败注入和前端提示的完整约定见 `VERSION_LIFECYCLE_DESIGN.md`。
 
+## 公开填写接口（里程碑 7 待实现）
+
+下列接口的成功和错误响应都设置 `Cache-Control: no-store`。公开响应使用严格白名单，不返回 `surveyId`、revision、时间戳、`allowMultipleSubmissions`、userId、ownerKey、令牌摘要、活动槽位或 MongoDB 内部字段。完整安全、Cookie、状态、限流和恢复约定见 `FILL_SESSION_DESIGN.md`。
+
+### `GET /api/public/surveys/:publicId`
+
+无需登录。成功返回 200：
+
+```json
+{
+  "survey": {
+    "publicId": "URL 安全公开标识",
+    "status": "published",
+    "title": "课程反馈",
+    "description": "请按真实情况填写",
+    "identityMode": "anonymous",
+    "deadline": null,
+    "questionCount": 5,
+    "sessionDurationMinutes": 30
+  }
+}
+```
+
+关闭和到期的问卷仍返回摘要，status 分别为 `closed` 和 `expired`，前端禁用开始按钮并解释原因。publicId 不存在、问卷从未发布或只有草稿统一返回 `PUBLIC_SURVEY_NOT_FOUND`。
+
+### `POST /api/public/surveys/:publicId/sessions`
+
+需要有效登录 Cookie，必须发送 JSON 空对象 `{}`，未知字段返回 `VALIDATION_ERROR`。成功返回 201，设置动态 Path 的 `survey_fill` HttpOnly Cookie，并返回：
+
+```json
+{
+  "session": {
+    "id": "session ObjectId",
+    "status": "active",
+    "startedAt": "2026-10-20T00:00:00.000Z",
+    "expiresAt": "2026-10-20T00:30:00.000Z",
+    "serverNow": "2026-10-20T00:00:00.000Z"
+  },
+  "version": {
+    "id": "version ObjectId",
+    "versionNumber": 2,
+    "title": "课程反馈",
+    "description": "请按真实情况填写",
+    "identityMode": "anonymous",
+    "deadline": null,
+    "sessionDurationMinutes": 30,
+    "questions": ["填写所需的题目、选项、校验和跳转规则"]
+  }
+}
+```
+
+创建会话不会刷新两小时登录 JWT。`survey_fill` Cookie 固定为 HttpOnly、SameSite=Lax、Path `/api/public/sessions/{sessionId}`，Max-Age 为会话时长，Secure 仅在生产开启。创建接口先执行账号+IP 与 IP 总量限流，再按公开问卷不存在、手工关闭、当前版本截止、禁止重复时已经提交、五个活动会话上限的顺序判定。里程碑 7 尚无 responses 集合，因此 `ALREADY_SUBMITTED` 只预留服务边界，里程碑 8 接入真实查询。
+
+### `GET /api/public/sessions/:sessionId`
+
+同时需要登录 Cookie 和动态 Path 的填写 Cookie。成功返回与创建接口相同的 session、serverNow 和版本白名单，用于刷新或重新登录后的恢复。会话/令牌不存在、令牌属于另一会话、当前账号不是创建者均统一返回 `SESSION_NOT_FOUND`。随后按手工关闭、绑定版本截止、会话 30 分钟到期判定。旧会话使用自己绑定版本的 deadline，不使用当前版本截止时间。
+
+填写令牌永不出现在路径或 JSON 中。后续提交路径固定为 `POST /api/public/sessions/:sessionId/submit`，在里程碑 8 实现。
+
 ## 稳定错误码
 
 | HTTP | 错误码                         | 含义                                                       |
@@ -446,6 +505,8 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 |  404 | `NOT_FOUND`                    | `/api` 下路由不存在                                        |
 |  404 | `SURVEY_NOT_FOUND`             | 问卷/版本不存在、不属于当前用户或组合错误                  |
 |  404 | `QUESTION_NOT_FOUND`           | 格式合法的题目 ID 在目标版本中不存在                       |
+|  404 | `PUBLIC_SURVEY_NOT_FOUND`      | publicId 不存在或问卷尚未发布                              |
+|  404 | `SESSION_NOT_FOUND`            | 会话、填写令牌或当前账号不匹配，统一隐藏存在性             |
 |  409 | `USERNAME_TAKEN`               | 规范化用户名已存在                                         |
 |  409 | `VERSION_NOT_EDITABLE`         | 目标版本已经发布，不能通过草稿接口修改                     |
 |  409 | `DRAFT_CONFLICT`               | 草稿 revision 已变化；`details.currentRevision` 返回当前值 |
@@ -458,6 +519,11 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 |  409 | `DRAFT_ALREADY_EXISTS`         | 问卷已经有下一版本草稿                                     |
 |  409 | `SURVEY_NOT_PUBLISHED`         | 操作要求问卷已有当前发布版本                               |
 |  409 | `SOURCE_VERSION_NOT_CURRENT`   | 创建草稿的来源不是当前发布版本                             |
+|  409 | `SURVEY_CLOSED`                | 问卷被创建者手工关闭                                       |
+|  409 | `SURVEY_EXPIRED`               | 会话绑定版本的截止时间已到                                 |
+|  409 | `SESSION_EXPIRED`              | 填写会话自身的 30 分钟期限已到                             |
+|  409 | `SESSION_LIMIT_REACHED`        | 同一账号在同一问卷已有五个活动会话                         |
+|  409 | `ALREADY_SUBMITTED`            | 禁止重复时当前 ownerKey 已向该版本提交；里程碑 8 接入      |
 |  413 | `PAYLOAD_TOO_LARGE`            | JSON 请求体超过 256 KiB                                    |
 |  415 | `UNSUPPORTED_MEDIA_TYPE`       | 带请求体的接口未使用 `application/json`                    |
 |  429 | `RATE_LIMITED`                 | 请求超过限流；响应含 `Retry-After`                         |
@@ -465,4 +531,4 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转与发布检查接口均已实现并通过自动测试和人工验收。真正发布、填写和统计尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查和完整版本生命周期接口均已实现并通过自动测试和人工验收。公开填写会话目前只有经人工审阅的 API 设计，尚未实现；正式回答提交和统计也尚未开始。

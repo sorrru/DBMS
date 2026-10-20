@@ -107,7 +107,7 @@ MongoDB
 }
 ```
 
-`publicId` 使用至少 128 位随机值和 URL 安全编码，用于稳定公开链接 `/survey/{publicId}`。发布新版本不改变链接。`currentVersionId` 和 `draftVersionId` 均允许为 `null`，但创建问卷和 v1 草稿的事务完成后，`draftVersionId` 必须指向 v1。
+`publicId` 使用至少 128 位随机值和 URL 安全编码，用于稳定公开链接 `/fill/{publicId}`。发布新版本不改变链接。`currentVersionId` 和 `draftVersionId` 均允许为 `null`，但创建问卷和 v1 草稿的事务完成后，`draftVersionId` 必须指向 v1。
 
 ### survey_versions
 
@@ -146,15 +146,19 @@ MongoDB
   "sessionTokenHash": "不可逆令牌摘要",
   "surveyId": "ObjectId(surveys)",
   "surveyVersionId": "ObjectId(survey_versions)",
-  "respondentKey": "问卷内匿名标识",
+  "identityMode": "anonymous",
+  "ownerKey": "问卷内稳定 HMAC 所有权键",
+  "userId": "仅实名模式保存",
   "status": "active",
+  "activeSlot": 0,
   "startedAt": "Date",
   "expiresAt": "Date",
+  "purgeAt": "Date",
   "submittedAt": null
 }
 ```
 
-`expiresAt` 建立 TTL 索引。后端仍主动判断是否过期，不能依赖 MongoDB 恰好在到期瞬间删除文档。
+状态为 `active | expired | submitted`，到期由共享函数即时计算并惰性写回，不依赖 TTL。`purgeAt=expiresAt+7 天` 建立 TTL 索引，只负责物理清理。匿名模式不保存 userId；三个公开接口和所有创建者接口均不返回 ownerKey、sessionTokenHash 或 activeSlot。每问卷每 ownerKey 最多五个 active 槽位，条件唯一索引负责并发兜底。完整约定见 `FILL_SESSION_DESIGN.md`。
 
 ### responses
 
@@ -166,7 +170,7 @@ MongoDB
   "surveyId": "ObjectId(surveys)",
   "surveyVersionId": "ObjectId(survey_versions)",
   "fillSessionId": "ObjectId(fill_sessions)",
-  "respondentKey": "问卷内匿名标识",
+  "ownerKey": "内部版本去重身份键",
   "dedupKey": "禁止重复时写入",
   "respondentId": "仅非匿名版本写入",
   "questionPath": ["q1", "q3", "q5"],
@@ -175,7 +179,7 @@ MongoDB
 }
 ```
 
-创建者读取匿名版本回答时，API 删除 `respondentKey`、`dedupKey`、`fillSessionId` 和其他身份相关字段。
+创建者读取匿名版本回答时，API 删除 `ownerKey`、`dedupKey`、`fillSessionId` 和其他身份相关字段。
 
 ## 嵌套设计
 
@@ -262,21 +266,21 @@ survey_version
 
 前端修改早期答案后必须重算路径，并清除新路径之外的旧答案。后端独立重算，不能直接相信前端结果。
 
-## 匿名标识和重复提交
+## 所有权假名键和重复提交
 
 ```text
-respondentKey = HMAC-SHA256(
+ownerKey = HMAC-SHA256(
   ANONYMOUS_ID_SECRET,
-  surveyId + ":" + userId
+  "survey-owner:v1\0" + surveyId + "\0" + userId
 )
 ```
 
-同一用户在同一问卷中的标识稳定，不同问卷中的标识不同。
+匿名和实名模式都生成 ownerKey；同一用户在同一问卷中的标识跨版本稳定，不同问卷中的标识不同。匿名模式不保存 userId，实名模式额外保存 userId。该方案是创建者不可见的假名化，不是对持有密钥的运维人员绝对匿名；已有数据存续期间不能直接轮换 ANONYMOUS_ID_SECRET。
 
 禁止重复填写时：
 
 ```text
-dedupKey = respondentKey
+dedupKey = ownerKey
 唯一约束 = surveyVersionId + dedupKey
 ```
 
@@ -312,7 +316,9 @@ v1 保留历史回答与统计
 
 下一版本草稿通过字段白名单深复制当前版本，在同一事务写入版本、更新草稿指针和 `surveys.updatedAt`；问卷条件更新与草稿部分唯一索引共同防止并发创建。其判定顺序先检查是否已有当前发布版本，再检查已有草稿，最后检查来源是否为当前版本。放弃草稿依次判断请求、归属、是否为初始草稿、版本状态和 revision。完整流程、错误顺序、失败注入和历史查询见 `VERSION_LIFECYCLE_DESIGN.md`。
 
-有效状态由共享包中的 `computeSurveyStatus(survey, currentVersion, now)` 计算，列表、公开摘要、填写会话与提交共用。`now` 由服务层时钟依赖提供，不接受客户端时间。问卷摘要的当前版本信息包含 deadline，列表仍通过一次批量版本查询计算状态。状态修改使用包含所有权、非空当前版本和相反 `manualStatus` 的条件更新；未命中后重新读取以区分 404、未发布和幂等成功，并用当前版本 deadline 计算响应状态。
+有效状态由共享包中的 `computeSurveyStatus(survey, currentVersion, now)` 计算，列表、公开摘要和创建新会话时对当前版本的判断共用。`now` 由服务层时钟依赖提供，不接受客户端时间。问卷摘要的当前版本信息包含 deadline，列表仍通过一次批量版本查询计算状态。状态修改使用包含所有权、非空当前版本和相反 `manualStatus` 的条件更新；未命中后重新读取以区分 404、未发布和幂等成功，并用当前版本 deadline 计算响应状态。
+
+旧版本填写会话不能直接复用当前版本状态。共享包另提供 `computeSessionState(session, survey, sessionVersion, now)`，依次判断 submitted、手工关闭、会话绑定版本截止、会话 30 分钟到期和 active；所有截止边界使用 `<= now`。因此发布新版本不会错误地用新版本 deadline 覆盖旧会话。
 
 问卷列表与版本历史使用同一通用游标签名器，派生标签为 `survey-cursor-signing-key:v2`，签名负载分别带 `kind: surveys` 和 `kind: versions`；严格字段校验阻止跨接口混用。旧列表游标是短期页面状态，迁移后通过刷新列表重新取得。
 
@@ -362,7 +368,8 @@ v1 保留历史回答与统计
 | ---- | ---------------------------------------- | ------------ |
 | GET  | `/api/public/surveys/:publicId`          | 公开摘要     |
 | POST | `/api/public/surveys/:publicId/sessions` | 创建填写会话 |
-| POST | `/api/public/sessions/:token/submit`     | 提交会话答案 |
+| GET  | `/api/public/sessions/:sessionId`        | 恢复填写会话 |
+| POST | `/api/public/sessions/:sessionId/submit` | 提交会话答案 |
 
 ### 统计
 
@@ -388,6 +395,13 @@ v1 保留历史回答与统计
 |  409 | `DRAFT_ALREADY_EXISTS`         | 问卷已经有下一版本草稿                          |
 |  409 | `SURVEY_NOT_PUBLISHED`         | 操作要求问卷已有当前发布版本                    |
 |  409 | `SOURCE_VERSION_NOT_CURRENT`   | 草稿复制来源不是当前发布版本                    |
+|  404 | `PUBLIC_SURVEY_NOT_FOUND`      | 公开问卷不存在或尚未发布                        |
+|  409 | `SURVEY_CLOSED`                | 问卷被创建者手工关闭                            |
+|  409 | `SURVEY_EXPIRED`               | 会话绑定版本的截止时间已到                      |
+|  404 | `SESSION_NOT_FOUND`            | 会话、填写令牌或所有权不匹配                    |
+|  409 | `SESSION_EXPIRED`              | 填写会话自身已到期                              |
+|  409 | `SESSION_LIMIT_REACHED`        | 同一账号在同一问卷已有五个活动会话              |
+|  409 | `ALREADY_SUBMITTED`            | 禁止重复时已向当前版本提交                      |
 
 所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`；发布、历史版本、放弃草稿和有效状态见 `VERSION_LIFECYCLE_DESIGN.md`。
 
@@ -409,7 +423,9 @@ v1 保留历史回答与统计
 | survey_versions | `surveyId + versionNumber` 唯一                                     |
 | survey_versions | `{ surveyId: 1, status: 1 }` 条件唯一索引，仅匹配 `status: "draft"` |
 | fill_sessions   | `sessionTokenHash` 唯一                                             |
-| fill_sessions   | `expiresAt` TTL                                                     |
+| fill_sessions   | `{ surveyId, ownerKey, activeSlot }` 条件唯一，仅 active            |
+| fill_sessions   | `{ surveyId, ownerKey, status, expiresAt }`                         |
+| fill_sessions   | `purgeAt` TTL，`expireAfterSeconds: 0`                              |
 | responses       | `surveyVersionId + submittedAt`                                     |
 | responses       | `surveyVersionId + dedupKey` 条件唯一                               |
 
