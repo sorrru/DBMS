@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeSurveyStatus,
+  computeSessionState,
   computePath,
   evaluateNextQuestion,
   validateAnswer,
@@ -37,6 +38,68 @@ describe("survey status", () => {
     expect(computeSurveyStatus(published, { deadline: null }, now)).toBe(
       "published",
     );
+  });
+});
+
+describe("fill session state", () => {
+  const now = new Date("2027-01-01T00:00:00.000Z");
+  const active = {
+    status: "active" as const,
+    expiresAt: "2027-01-01T00:30:00.000Z",
+  };
+
+  it("uses submitted, manual close, bound deadline and session expiry precedence", () => {
+    expect(
+      computeSessionState(
+        { ...active, status: "submitted" },
+        { manualStatus: "closed" },
+        { deadline: "2026-12-31T23:00:00.000Z" },
+        now,
+      ),
+    ).toBe("submitted");
+    expect(
+      computeSessionState(
+        active,
+        { manualStatus: "closed" },
+        { deadline: "2026-12-31T23:00:00.000Z" },
+        now,
+      ),
+    ).toBe("closed");
+    expect(
+      computeSessionState(
+        active,
+        { manualStatus: "open" },
+        { deadline: "2027-01-01T00:00:00.000Z" },
+        now,
+      ),
+    ).toBe("survey_expired");
+    expect(
+      computeSessionState(
+        { ...active, expiresAt: now },
+        { manualStatus: "open" },
+        { deadline: null },
+        now,
+      ),
+    ).toBe("expired");
+    expect(
+      computeSessionState(
+        active,
+        { manualStatus: "open" },
+        { deadline: null },
+        now,
+      ),
+    ).toBe("active");
+  });
+
+  it("uses the session-bound version deadline rather than a newer version", () => {
+    expect(
+      computeSessionState(
+        active,
+        { manualStatus: "open" },
+        { deadline: "2026-12-31T23:59:59.000Z" },
+        now,
+      ),
+    ).toBe("survey_expired");
   });
 });
 

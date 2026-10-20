@@ -36,6 +36,18 @@ function integer(
   return value;
 }
 
+function boundedInteger(
+  source: NodeJS.ProcessEnv,
+  name: string,
+  fallback: number,
+  maximum: number,
+): number {
+  const value = integer(source, name, fallback);
+  if (value > maximum)
+    throw new Error(`${name} 必须是不大于 ${maximum} 的整数`);
+  return value;
+}
+
 function secret(source: NodeJS.ProcessEnv, name: string): string {
   const value = required(source, name);
   if (value.length < 32 || EXAMPLE_SECRETS.has(value))
@@ -61,6 +73,9 @@ export interface AppEnv {
   surveyWriteRateLimit: number;
   surveyWriteRateWindowMs: number;
   jumpRuleMaxPerQuestion: number;
+  fillSessionRateLimitWindowMs: number;
+  fillSessionAccountIpMax: number;
+  fillSessionIpMax: number;
 }
 
 export function loadEnv(
@@ -111,6 +126,24 @@ export function loadEnv(
       60_000,
     ),
     jumpRuleMaxPerQuestion,
+    fillSessionRateLimitWindowMs: boundedInteger(
+      source,
+      "FILL_SESSION_RATE_LIMIT_WINDOW_MS",
+      900_000,
+      86_400_000,
+    ),
+    fillSessionAccountIpMax: boundedInteger(
+      source,
+      "FILL_SESSION_RATE_LIMIT_ACCOUNT_IP_MAX",
+      20,
+      10_000,
+    ),
+    fillSessionIpMax: boundedInteger(
+      source,
+      "FILL_SESSION_RATE_LIMIT_IP_MAX",
+      100,
+      10_000,
+    ),
   });
 }
 

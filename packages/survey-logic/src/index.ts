@@ -83,6 +83,22 @@ export interface CurrentVersionStatusInput {
 
 export type SurveyStatus = "draft" | "published" | "closed" | "expired";
 
+export interface FillSessionStatusInput {
+  status: "active" | "expired" | "submitted";
+  expiresAt: string | Date;
+}
+
+export interface FillSessionSurveyInput {
+  manualStatus: "open" | "closed";
+}
+
+export interface FillSessionVersionInput {
+  deadline: string | Date | null;
+}
+
+export type FillSessionState =
+  "active" | "submitted" | "closed" | "survey_expired" | "expired";
+
 export function computeSurveyStatus(
   survey: SurveyStatusInput,
   currentVersion: CurrentVersionStatusInput | null,
@@ -96,6 +112,24 @@ export function computeSurveyStatus(
   )
     return "expired";
   return "published";
+}
+
+export function computeSessionState(
+  session: FillSessionStatusInput,
+  survey: FillSessionSurveyInput,
+  sessionVersion: FillSessionVersionInput,
+  now: Date,
+): FillSessionState {
+  if (session.status === "submitted") return "submitted";
+  if (session.status === "expired") return "expired";
+  if (survey.manualStatus === "closed") return "closed";
+  if (
+    sessionVersion.deadline &&
+    new Date(sessionVersion.deadline).getTime() <= now.getTime()
+  )
+    return "survey_expired";
+  if (new Date(session.expiresAt).getTime() <= now.getTime()) return "expired";
+  return "active";
 }
 
 const safeMaximum = Number.MAX_SAFE_INTEGER;

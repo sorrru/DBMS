@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import { validateCredentials } from "../auth/validation.js";
 import { env } from "../config/env.js";
 import { assertLocalMongoUri } from "../database/local-safety.js";
+import { deriveOwnerKey } from "../fills/service.js";
+import { FillSessionModel } from "../models/fill-session.js";
 import { SurveyModel } from "../models/survey.js";
 import { SurveyVersionModel } from "../models/survey-version.js";
 import { UserModel } from "../models/user.js";
@@ -61,6 +64,7 @@ async function main(): Promise<void> {
     UserModel.init(),
     SurveyModel.init(),
     SurveyVersionModel.init(),
+    FillSessionModel.init(),
   ]);
   await cleanSeedData();
   if (process.argv.includes("--clean")) {
@@ -157,6 +161,23 @@ async function main(): Promise<void> {
     anonymous.id,
     anonymous.draftVersion!.id,
   );
+  const oldSessionStartedAt = new Date(Date.now() - 45 * 60_000);
+  const oldSessionExpiresAt = new Date(Date.now() - 15 * 60_000);
+  await FillSessionModel.create({
+    surveyId: anonymous.id,
+    surveyVersionId: anonymous.draftVersion!.id,
+    identityMode: "anonymous",
+    ownerKey: deriveOwnerKey(env.anonymousIdSecret, anonymous.id, user._id),
+    sessionTokenHash: createHash("sha256")
+      .update(randomBytes(32))
+      .digest("hex"),
+    status: "active",
+    activeSlot: 0,
+    startedAt: oldSessionStartedAt,
+    expiresAt: oldSessionExpiresAt,
+    purgeAt: new Date(oldSessionExpiresAt.getTime() + 7 * 24 * 60 * 60_000),
+    submittedAt: null,
+  });
   const identified = await surveys.create(user._id, "实名活动报名（种子）");
   const identifiedSettings = await surveys.patchDraft(
     user._id,
@@ -213,7 +234,7 @@ async function main(): Promise<void> {
     { $set: { deadline: new Date("2020-01-01T00:00:00.000Z") } },
   );
   console.info(
-    `种子数据已创建：${seedUsername}，包含已发布 v1 + 草稿 v2、关闭、到期、四种题型和有效分支`,
+    `种子数据已创建：${seedUsername}，包含匿名、实名、已发布 v1 + 草稿 v2、关闭、到期、旧版本会话、四种题型和有效分支`,
   );
 }
 

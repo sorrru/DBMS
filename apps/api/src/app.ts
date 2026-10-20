@@ -15,6 +15,7 @@ import { PasswordService } from "./security/password.js";
 import { FixedWindowStore } from "./security/rate-limit.js";
 import { TokenService } from "./security/token.js";
 import { createSurveyRouter } from "./surveys/router.js";
+import { createFillRouter } from "./fills/router.js";
 
 export interface HealthResponse {
   status: "ok" | "degraded";
@@ -69,6 +70,7 @@ function defaultAuthDependencies(): AuthDependencies {
 
 export function createApp(
   authDependencies: AuthDependencies = defaultAuthDependencies(),
+  clock: () => Date = () => new Date(),
 ): Express {
   const app = express();
 
@@ -98,6 +100,7 @@ export function createApp(
   });
 
   app.use("/api/auth", createAuthRouter(authDependencies));
+  app.use("/api/public", createFillRouter(authDependencies, clock));
   app.use("/api/surveys", createSurveyRouter(authDependencies));
   app.use("/api", (_request, _response, next) =>
     next(new ApiError(404, "NOT_FOUND", "接口不存在")),

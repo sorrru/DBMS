@@ -12,6 +12,21 @@ describe("loadEnv", () => {
     expect(loaded.surveyWriteRateLimit).toBe(120);
     expect(loaded.surveyWriteRateWindowMs).toBe(60_000);
     expect(loaded.jumpRuleMaxPerQuestion).toBe(20);
+    expect(loaded.fillSessionRateLimitWindowMs).toBe(900_000);
+    expect(loaded.fillSessionAccountIpMax).toBe(20);
+    expect(loaded.fillSessionIpMax).toBe(100);
+  });
+  it("bounds all fill-session rate-limit settings", () => {
+    expect(
+      loadEnv({ ...valid, FILL_SESSION_RATE_LIMIT_WINDOW_MS: "86400000" })
+        .fillSessionRateLimitWindowMs,
+    ).toBe(86_400_000);
+    for (const [name, value] of [
+      ["FILL_SESSION_RATE_LIMIT_WINDOW_MS", "86400001"],
+      ["FILL_SESSION_RATE_LIMIT_ACCOUNT_IP_MAX", "0"],
+      ["FILL_SESSION_RATE_LIMIT_IP_MAX", "10001"],
+    ] as const)
+      expect(() => loadEnv({ ...valid, [name]: value })).toThrow(name);
   });
   it("accepts only a 1 to 100 jump-rule limit", () => {
     expect(

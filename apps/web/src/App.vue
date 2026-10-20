@@ -16,10 +16,12 @@ import {
   type PublicUser,
 } from "./auth";
 import DeadlineInput from "./DeadlineInput.vue";
+import FillPage from "./FillPage.vue";
 import JumpRuleEditor from "./JumpRuleEditor.vue";
 import PublishedVersionView from "./PublishedVersionView.vue";
 import QuestionEditor from "./QuestionEditor.vue";
 import { fetchHealth, type HealthResponse } from "./health";
+import { parseFillRoute, safeFillReturnPath, type FillRoute } from "./fill";
 import {
   changedDraftFields,
   clearSettingsDraft,
@@ -83,6 +85,11 @@ const recovery = ref<{ key: string; draft: StoredDraft }>();
 const savedAt = ref("");
 const fieldErrors = reactive<Record<string, string>>({});
 const deadlineInputValid = ref(true);
+const fillRoute = ref<FillRoute | undefined>(
+  parseFillRoute(window.location.pathname),
+);
+const fillLogin = ref(false);
+const pendingFillPath = ref<string>();
 
 const changed = computed(() =>
   original.value ? changedDraftFields(original.value, form) : {},
@@ -214,6 +221,16 @@ async function submitAuth(): Promise<void> {
     user.value = result.user;
     password.value = "";
     confirmPassword.value = "";
+    if (pendingFillPath.value) {
+      const path = safeFillReturnPath(pendingFillPath.value);
+      pendingFillPath.value = undefined;
+      fillLogin.value = false;
+      if (path) {
+        history.replaceState({}, "", path);
+        fillRoute.value = parseFillRoute(path);
+        return;
+      }
+    }
     await loadSurveyList();
   } catch (error) {
     password.value = "";
@@ -223,6 +240,31 @@ async function submitAuth(): Promise<void> {
     submitting.value = false;
     showPassword.value = false;
     showConfirmPassword.value = false;
+  }
+}
+
+function requireFillLogin(path: string): void {
+  const safePath = safeFillReturnPath(path);
+  if (!safePath) return;
+  pendingFillPath.value = safePath;
+  fillLogin.value = true;
+  mode.value = "login";
+  message.value = "请登录后继续填写；登录成功后会返回当前问卷。";
+}
+
+function updateFillRoute(route: FillRoute): void {
+  fillRoute.value = route;
+}
+
+async function copyPublicLink(): Promise<void> {
+  if (!selectedSurvey.value) return;
+  try {
+    await navigator.clipboard.writeText(
+      `${window.location.origin}/fill/${selectedSurvey.value.publicId}`,
+    );
+    message.value = "公开填写链接已复制。";
+  } catch {
+    message.value = "复制失败，请手动复制公开链接。";
   }
 }
 
@@ -581,16 +623,19 @@ onMounted(async () => {
   if (healthResult.status === "fulfilled") health.value = healthResult.value;
   if (userResult.status === "fulfilled") {
     user.value = userResult.value.user;
-    try {
-      await loadSurveyList();
-    } catch (error) {
-      showError(error);
-    }
+    if (!fillRoute.value)
+      try {
+        await loadSurveyList();
+      } catch (error) {
+        showError(error);
+      }
   } else if (
     !(userResult.reason instanceof ApiClientError) ||
     !["AUTH_REQUIRED", "AUTH_INVALID"].includes(userResult.reason.code)
   )
     showError(userResult.reason);
+  else if (fillRoute.value?.sessionId)
+    requireFillLogin(window.location.pathname);
   loading.value = false;
 });
 onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
@@ -619,6 +664,13 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
     <section v-if="loading" class="auth-panel">
       <p class="muted">正在恢复登录状态…</p>
     </section>
+    <FillPage
+      v-else-if="fillRoute && (!fillLogin || user)"
+      :route="fillRoute"
+      :user="user"
+      @require-login="requireFillLogin"
+      @route-changed="updateFillRoute"
+    />
     <section v-else-if="!user" class="auth-panel" aria-live="polite">
       <div class="mode-tabs">
         <button
@@ -977,6 +1029,24 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
                     @click="refreshHistory(true)"
                   >
                     更多版本
+                  </button>
+                </div>
+                <div
+                  v-if="selectedSurvey.currentVersion"
+                  class="public-link-row"
+                >
+                  <a
+                    :href="`/fill/${selectedSurvey.publicId}`"
+                    target="_blank"
+                    rel="noopener"
+                    >打开公开填写页</a
+                  >
+                  <button
+                    class="secondary compact"
+                    type="button"
+                    @click="copyPublicLink"
+                  >
+                    复制公开链接
                   </button>
                 </div>
               </section>

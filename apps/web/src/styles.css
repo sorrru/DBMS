@@ -622,6 +622,156 @@ select {
 .message-bar {
   margin: 1rem 0;
 }
+
+.public-link-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  border-top: 1px solid #dce5ed;
+  padding-top: 1rem;
+}
+
+.public-link-row a {
+  color: #245b8f;
+  font-weight: 700;
+}
+
+.fill-panel {
+  min-height: 31rem;
+  border: 1px solid #d6e0ea;
+  border-radius: 1.25rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background: white;
+  box-shadow: 0 1.2rem 3rem rgb(39 69 99 / 10%);
+}
+
+.fill-header,
+.fill-actions,
+.fill-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fill-header h2 {
+  margin-bottom: 0;
+}
+
+.fill-timer {
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  color: #245b8f;
+  background: #eaf1f7;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.fill-description {
+  color: #526174;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.identity-notice {
+  border-left: 0.25rem solid #729bc1;
+  border-radius: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  color: #344257;
+  background: #f1f6fa;
+  line-height: 1.55;
+}
+
+.fill-summary-card {
+  align-items: stretch;
+  flex-direction: column;
+  margin-top: 1.5rem;
+  border: 1px solid #dce5ed;
+  border-radius: 0.85rem;
+  padding: 1.1rem;
+  color: #526174;
+  background: #fbfcfd;
+}
+
+.fill-summary-card .primary {
+  width: 100%;
+}
+
+.fill-question-card {
+  margin-top: 1.5rem;
+  border: 1px solid #d8e2eb;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+  background: #fbfcfd;
+}
+
+.fill-question-card h3 {
+  margin: 0.4rem 0 1.2rem;
+  line-height: 1.45;
+}
+
+.fill-progress {
+  margin-bottom: 0.4rem;
+  color: #627083;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.required {
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  padding: 0.18rem 0.4rem;
+  color: #a52f2f;
+  background: #fff0f0;
+  font-size: 0.72rem;
+  vertical-align: middle;
+}
+
+.fill-options {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.fill-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid #dce5ed;
+  border-radius: 0.7rem;
+  padding: 0.8rem;
+  background: white;
+}
+
+.fill-options input {
+  width: auto;
+}
+
+.fill-actions {
+  margin-top: 1.2rem;
+}
+
+.fill-review {
+  display: grid;
+  gap: 0.8rem;
+  padding-left: 1.4rem;
+}
+
+.fill-review li {
+  padding-left: 0.3rem;
+}
+
+.fill-review strong,
+.fill-review span {
+  display: block;
+}
+
+.fill-review span {
+  margin-top: 0.25rem;
+  color: #526174;
+  white-space: pre-wrap;
+}
 button {
   cursor: pointer;
 }
@@ -901,5 +1051,9 @@ input:focus {
     flex: 0 0 auto;
     padding: 0.55rem 0.7rem;
     white-space: nowrap;
+  }
+
+  .fill-header {
+    align-items: flex-start;
   }
 }
