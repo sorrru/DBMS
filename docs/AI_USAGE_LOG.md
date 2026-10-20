@@ -444,6 +444,8 @@ AI 先盘点现有共享逻辑 11 项、API 140 项和 Web 22 项测试，以及
 
 P5 新增受保护的本地问卷列表基准脚本，在专用 `_benchmark` 数据库生成 10,000 份固定数据，并让每五份记录共享 `updatedAt`。不使用 hint 的真实 explain 显示：首屏为 `IXSCAN → FETCH → LIMIT`；中点游标页为两个同一三字段复合索引区间的 `IXSCAN → SORT_MERGE → FETCH → LIMIT`。两者返回 21 条时均只检查 21 个键和 21 份文档，没有阻塞排序；实验数据随后清理。证据保存于 `docs/experiments/MILESTONE10_SURVEY_LIST_EXPLAIN.md`，P1–P5 至此全部关闭，补缺后测试总数为 177 项。
 
+项目负责人确认 P1–P5 检查点通过后，AI 扩充受保护种子：保留 `seed_demo` 创建者，增加 `seed_guest_a` 与 `seed_guest_b` 两名填写者；匿名已发布 v1 固定三份回答，覆盖默认和跳转路径、零计数选项、到达未答与数字统计；实名问卷由两个账号各提交一份。AI 在本地 Docker 数据库真实执行两次 seed，均得到 3 用户、3 问卷、4 版本、6 会话、5 回答；随后第一次 clean 删除相同数量，第二次 clean 全为 0。最后用项目现有 `.env` 恢复演示数据供人工验收，手算表和幂等证据保存于 `docs/experiments/MILESTONE10_SEED_VERIFICATION.md`。
+
 ## 2026-10-16 TODO 第一轮人工审阅
 
 ### 人工审阅意见

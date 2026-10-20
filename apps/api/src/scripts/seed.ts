@@ -14,6 +14,16 @@ import { SurveyCursorService } from "../surveys/cursor.js";
 import { SurveyService } from "../surveys/service.js";
 
 const seedUsername = "seed_demo";
+const seedRespondentUsernames = ["seed_guest_a", "seed_guest_b"] as const;
+const seedUsernames = [seedUsername, ...seedRespondentUsernames];
+
+interface SeedCounts {
+  users: number;
+  surveys: number;
+  versions: number;
+  sessions: number;
+  responses: number;
+}
 
 function assertSeedEnvironment(): string {
   if (process.env.NODE_ENV === "production")
@@ -28,28 +38,70 @@ function assertSeedEnvironment(): string {
 async function deleteIfExists(
   name: string,
   filter: Record<string, unknown>,
-): Promise<void> {
+): Promise<number> {
   const db = mongoose.connection.db;
   if (!db) throw new Error("MongoDB 尚未连接");
   const exists = await db
     .listCollections({ name }, { nameOnly: true })
     .hasNext();
-  if (exists) await db.collection(name).deleteMany(filter);
+  if (!exists) return 0;
+  return (await db.collection(name).deleteMany(filter)).deletedCount;
 }
 
-async function cleanSeedData(): Promise<void> {
-  const user = await UserModel.findOne({
-    usernameNormalized: seedUsername,
+async function cleanSeedData(): Promise<SeedCounts> {
+  const users = await UserModel.find({
+    usernameNormalized: { $in: seedUsernames },
   }).lean();
-  if (!user) return;
-  const surveyIds = (await SurveyModel.find({ ownerId: user._id }).distinct(
-    "_id",
-  )) as mongoose.Types.ObjectId[];
-  await deleteIfExists("responses", { surveyId: { $in: surveyIds } });
-  await deleteIfExists("fill_sessions", { surveyId: { $in: surveyIds } });
-  await SurveyVersionModel.deleteMany({ surveyId: { $in: surveyIds } });
-  await SurveyModel.deleteMany({ _id: { $in: surveyIds } });
-  await UserModel.deleteOne({ _id: user._id });
+  const owner = users.find(
+    (candidate) => candidate.usernameNormalized === seedUsername,
+  );
+  const surveyIds = owner
+    ? ((await SurveyModel.find({ ownerId: owner._id }).distinct(
+        "_id",
+      )) as mongoose.Types.ObjectId[])
+    : [];
+  const responses = await deleteIfExists("responses", {
+    surveyId: { $in: surveyIds },
+  });
+  const sessions = await deleteIfExists("fill_sessions", {
+    surveyId: { $in: surveyIds },
+  });
+  const versions = (
+    await SurveyVersionModel.deleteMany({ surveyId: { $in: surveyIds } })
+  ).deletedCount;
+  const surveys = (await SurveyModel.deleteMany({ _id: { $in: surveyIds } }))
+    .deletedCount;
+  const deletedUsers = (
+    await UserModel.deleteMany({ usernameNormalized: { $in: seedUsernames } })
+  ).deletedCount;
+  return { users: deletedUsers, surveys, versions, sessions, responses };
+}
+
+async function countSeedData(): Promise<SeedCounts> {
+  const users = await UserModel.find({
+    usernameNormalized: { $in: seedUsernames },
+  }).lean();
+  const owner = users.find(
+    (candidate) => candidate.usernameNormalized === seedUsername,
+  );
+  const surveyIds = owner
+    ? ((await SurveyModel.find({ ownerId: owner._id }).distinct(
+        "_id",
+      )) as mongoose.Types.ObjectId[])
+    : [];
+  return {
+    users: users.length,
+    surveys: surveyIds.length,
+    versions: await SurveyVersionModel.countDocuments({
+      surveyId: { $in: surveyIds },
+    }),
+    sessions: await FillSessionModel.countDocuments({
+      surveyId: { $in: surveyIds },
+    }),
+    responses: await SurveyResponseModel.countDocuments({
+      surveyId: { $in: surveyIds },
+    }),
+  };
 }
 
 async function main(): Promise<void> {
@@ -68,17 +120,30 @@ async function main(): Promise<void> {
     FillSessionModel.init(),
     SurveyResponseModel.init(),
   ]);
-  await cleanSeedData();
+  const removed = await cleanSeedData();
   if (process.argv.includes("--clean")) {
-    console.info("种子数据已清理");
+    console.info(`种子数据已清理：${JSON.stringify(removed)}`);
     return;
   }
-  const user = await UserModel.create({
-    username: credentials.username,
-    usernameNormalized: credentials.usernameNormalized,
-    passwordHash: await passwords.hash(credentials.password),
-    registeredAt: new Date(),
-  });
+  const userInputs = [
+    credentials,
+    ...seedRespondentUsernames.map((username) =>
+      validateCredentials({ username, password }, passwords, true),
+    ),
+  ];
+  const createdUsers = [];
+  for (const input of userInputs) {
+    createdUsers.push(
+      await UserModel.create({
+        username: input.username,
+        usernameNormalized: input.usernameNormalized,
+        passwordHash: await passwords.hash(input.password),
+        registeredAt: new Date(),
+      }),
+    );
+  }
+  const [user, guestA, guestB] = createdUsers;
+  if (!user || !guestA || !guestB) throw new Error("种子账号创建不完整");
   const surveys = new SurveyService(
     env,
     new SurveyCursorService(env.jwtSecret),
@@ -163,42 +228,126 @@ async function main(): Promise<void> {
     anonymous.id,
     anonymous.draftVersion!.id,
   );
-  const anonymousSubmittedAt = new Date(Date.now() - 10 * 60_000);
-  const anonymousFillSessionId = new mongoose.Types.ObjectId();
-  const anonymousOwnerKey = deriveOwnerKey(
-    env.anonymousIdSecret,
-    anonymous.id,
-    user._id,
-  );
-  await FillSessionModel.create({
-    _id: anonymousFillSessionId,
+  const createSubmittedResponse = async (input: {
+    surveyId: mongoose.Types.ObjectId | string;
+    versionId: mongoose.Types.ObjectId | string;
+    identityMode: "anonymous" | "identified";
+    respondent: typeof user;
+    minutesAgo: number;
+    questionPath: string[];
+    ignoredQuestionIds: string[];
+    answers: Array<{
+      questionId: string;
+      value: string | string[] | number;
+    }>;
+  }) => {
+    const surveyId = new mongoose.Types.ObjectId(input.surveyId);
+    const versionId = new mongoose.Types.ObjectId(input.versionId);
+    const submittedAt = new Date(Date.now() - input.minutesAgo * 60_000);
+    const fillSessionId = new mongoose.Types.ObjectId();
+    const ownerKey = deriveOwnerKey(
+      env.anonymousIdSecret,
+      surveyId,
+      input.respondent._id,
+    );
+    await FillSessionModel.create({
+      _id: fillSessionId,
+      surveyId,
+      surveyVersionId: versionId,
+      identityMode: input.identityMode,
+      ownerKey,
+      ...(input.identityMode === "identified"
+        ? { userId: input.respondent._id }
+        : {}),
+      sessionTokenHash: createHash("sha256")
+        .update(randomBytes(32))
+        .digest("hex"),
+      status: "submitted",
+      activeSlot: null,
+      startedAt: new Date(submittedAt.getTime() - 5 * 60_000),
+      expiresAt: new Date(submittedAt.getTime() + 25 * 60_000),
+      purgeAt: new Date(submittedAt.getTime() + 7 * 24 * 60 * 60_000),
+      submittedAt,
+    });
+    await SurveyResponseModel.create({
+      surveyId,
+      surveyVersionId: versionId,
+      fillSessionId,
+      ownerKey,
+      ...(input.identityMode === "anonymous" ? { dedupKey: ownerKey } : {}),
+      ...(input.identityMode === "identified"
+        ? { respondentId: input.respondent._id }
+        : {}),
+      questionPath: input.questionPath,
+      ignoredQuestionIds: input.ignoredQuestionIds,
+      answers: input.answers,
+      submittedAt,
+    });
+  };
+  const satisfied = satisfaction.options.find(
+    (option) => option.text === "满意",
+  )!;
+  const neutral = satisfaction.options.find(
+    (option) => option.text === "一般",
+  )!;
+  const lecture = helpful.options.find((option) => option.text === "课堂讲解")!;
+  const experiment = helpful.options.find(
+    (option) => option.text === "课程实验",
+  )!;
+  await createSubmittedResponse({
     surveyId: anonymous.id,
-    surveyVersionId: anonymous.draftVersion!.id,
+    versionId: anonymous.draftVersion!.id,
     identityMode: "anonymous",
-    ownerKey: anonymousOwnerKey,
-    sessionTokenHash: createHash("sha256")
-      .update(randomBytes(32))
-      .digest("hex"),
-    status: "submitted",
-    activeSlot: null,
-    startedAt: new Date(anonymousSubmittedAt.getTime() - 5 * 60_000),
-    expiresAt: new Date(anonymousSubmittedAt.getTime() + 25 * 60_000),
-    purgeAt: new Date(anonymousSubmittedAt.getTime() + 7 * 24 * 60 * 60_000),
-    submittedAt: anonymousSubmittedAt,
+    respondent: user,
+    minutesAgo: 30,
+    questionPath: [
+      satisfaction.questionId,
+      helpful.questionId,
+      contact.questionId,
+      studyHours.questionId,
+    ],
+    ignoredQuestionIds: [],
+    answers: [
+      { questionId: satisfaction.questionId, value: satisfied.optionId },
+      {
+        questionId: helpful.questionId,
+        value: [lecture.optionId, experiment.optionId],
+      },
+      { questionId: contact.questionId, value: "13800138000" },
+      { questionId: studyHours.questionId, value: 8 },
+    ],
   });
-  await SurveyResponseModel.create({
+  await createSubmittedResponse({
     surveyId: anonymous.id,
-    surveyVersionId: anonymous.draftVersion!.id,
-    fillSessionId: anonymousFillSessionId,
-    ownerKey: anonymousOwnerKey,
-    dedupKey: anonymousOwnerKey,
+    versionId: anonymous.draftVersion!.id,
+    identityMode: "anonymous",
+    respondent: guestA,
+    minutesAgo: 20,
+    questionPath: [
+      satisfaction.questionId,
+      helpful.questionId,
+      contact.questionId,
+      studyHours.questionId,
+    ],
+    ignoredQuestionIds: [],
+    answers: [
+      { questionId: satisfaction.questionId, value: neutral.optionId },
+      { questionId: helpful.questionId, value: [experiment.optionId] },
+      { questionId: studyHours.questionId, value: 12 },
+    ],
+  });
+  await createSubmittedResponse({
+    surveyId: anonymous.id,
+    versionId: anonymous.draftVersion!.id,
+    identityMode: "anonymous",
+    respondent: guestB,
+    minutesAgo: 10,
     questionPath: [satisfaction.questionId, studyHours.questionId],
     ignoredQuestionIds: [helpful.questionId, contact.questionId],
     answers: [
       { questionId: satisfaction.questionId, value: dissatisfied.optionId },
       { questionId: studyHours.questionId, value: 6.5 },
     ],
-    submittedAt: anonymousSubmittedAt,
   });
   const oldSessionStartedAt = new Date(Date.now() - 45 * 60_000);
   const oldSessionExpiresAt = new Date(Date.now() - 15 * 60_000);
@@ -245,45 +394,27 @@ async function main(): Promise<void> {
     identifiedQuestion.version.revision,
     false,
   );
-  const identifiedSubmittedAt = new Date(Date.now() - 5 * 60_000);
-  const identifiedFillSessionId = new mongoose.Types.ObjectId();
-  const identifiedOwnerKey = deriveOwnerKey(
-    env.anonymousIdSecret,
-    identified.id,
-    user._id,
-  );
-  await FillSessionModel.create({
-    _id: identifiedFillSessionId,
+  const identifiedQuestionId =
+    identifiedQuestion.version.questions[0]!.questionId;
+  await createSubmittedResponse({
     surveyId: identified.id,
-    surveyVersionId: identified.draftVersion!.id,
+    versionId: identified.draftVersion!.id,
     identityMode: "identified",
-    ownerKey: identifiedOwnerKey,
-    userId: user._id,
-    sessionTokenHash: createHash("sha256")
-      .update(randomBytes(32))
-      .digest("hex"),
-    status: "submitted",
-    activeSlot: null,
-    startedAt: new Date(identifiedSubmittedAt.getTime() - 4 * 60_000),
-    expiresAt: new Date(identifiedSubmittedAt.getTime() + 26 * 60_000),
-    purgeAt: new Date(identifiedSubmittedAt.getTime() + 7 * 24 * 60 * 60_000),
-    submittedAt: identifiedSubmittedAt,
-  });
-  await SurveyResponseModel.create({
-    surveyId: identified.id,
-    surveyVersionId: identified.draftVersion!.id,
-    fillSessionId: identifiedFillSessionId,
-    ownerKey: identifiedOwnerKey,
-    respondentId: user._id,
-    questionPath: [identifiedQuestion.version.questions[0]!.questionId],
+    respondent: guestA,
+    minutesAgo: 8,
+    questionPath: [identifiedQuestionId],
     ignoredQuestionIds: [],
-    answers: [
-      {
-        questionId: identifiedQuestion.version.questions[0]!.questionId,
-        value: "种子用户",
-      },
-    ],
-    submittedAt: identifiedSubmittedAt,
+    answers: [{ questionId: identifiedQuestionId, value: "种子甲" }],
+  });
+  await createSubmittedResponse({
+    surveyId: identified.id,
+    versionId: identified.draftVersion!.id,
+    identityMode: "identified",
+    respondent: guestB,
+    minutesAgo: 5,
+    questionPath: [identifiedQuestionId],
+    ignoredQuestionIds: [],
+    answers: [{ questionId: identifiedQuestionId, value: "种子乙" }],
   });
   await surveys.setStatus(user._id, identified.id, "closed");
 
@@ -312,8 +443,12 @@ async function main(): Promise<void> {
     { _id: expired.draftVersion!.id },
     { $set: { deadline: new Date("2020-01-01T00:00:00.000Z") } },
   );
+  const counts = await countSeedData();
   console.info(
-    `种子数据已创建：${seedUsername}，包含匿名/实名回答、允许/禁止重复、已发布 v1 + 草稿 v2、关闭、到期、旧版本会话、四种题型和有效分支`,
+    `种子数据已创建：${seedUsernames.join("、")}；${JSON.stringify(counts)}`,
+  );
+  console.info(
+    "匿名问卷 v1：3 份回答、两条路径；实名问卷：seed_guest_a 与 seed_guest_b 各 1 份回答；另含 v2 草稿、关闭、到期和过期旧会话。",
   );
 }
 
