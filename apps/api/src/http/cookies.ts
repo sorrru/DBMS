@@ -52,3 +52,14 @@ export function setFillSessionCookie(
     `${fillSessionCookieName}=${encodeURIComponent(token)}; Max-Age=${maxAgeSeconds}; Path=/api/public/sessions/${sessionId}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`,
   );
 }
+
+export function clearFillSessionCookie(
+  response: Response,
+  sessionId: string,
+  secure: boolean,
+): void {
+  response.append(
+    "Set-Cookie",
+    `${fillSessionCookieName}=; Max-Age=0; Path=/api/public/sessions/${sessionId}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`,
+  );
+}

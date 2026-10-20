@@ -42,9 +42,20 @@ export interface VersionForPublish {
   deadline: string | Date | null;
   questions: SurveyQuestion[];
 }
+export type AnswerIssueCode =
+  | "REQUIRED"
+  | "TYPE_MISMATCH"
+  | "UNKNOWN_OPTION"
+  | "DUPLICATE_SELECTION"
+  | "SELECTION_COUNT"
+  | "TOO_SHORT"
+  | "TOO_LONG"
+  | "DIGITS_ONLY"
+  | "OUT_OF_RANGE"
+  | "NOT_INTEGER";
 export type AnswerResult =
   | { ok: true; value: string | string[] | number | null; answered: boolean }
-  | { ok: false; path: string; reason: string };
+  | { ok: false; code: AnswerIssueCode; path: string; reason: string };
 export type NextQuestion =
   { kind: "question"; questionId: string } | { kind: "end" };
 export type PathResult =
@@ -134,8 +145,9 @@ export function computeSessionState(
 
 const safeMaximum = Number.MAX_SAFE_INTEGER;
 const codePoints = (value: string): number => Array.from(value).length;
-const failure = (reason: string): AnswerResult => ({
+const failure = (code: AnswerIssueCode, reason: string): AnswerResult => ({
   ok: false,
+  code,
   path: "answer",
   reason,
 });
@@ -151,33 +163,36 @@ export function validateAnswer(
     candidate.length === 0
   )
     return question.required
-      ? failure("此题为必答题")
+      ? failure("REQUIRED", "此题为必答题")
       : { ok: true, value: null, answered: false };
   if (question.type === "text" && typeof candidate === "string") {
     const value = candidate.normalize("NFC").trim();
     if (!value)
       return question.required
-        ? failure("此题为必答题")
+        ? failure("REQUIRED", "此题为必答题")
         : { ok: true, value: null, answered: false };
     const validation = question.validation as Extract<
       QuestionValidation,
       { minLength: number }
     >;
     const length = codePoints(value);
-    if (length < validation.minLength || length > validation.maxLength)
-      return failure("文本长度不符合要求");
+    if (length < validation.minLength)
+      return failure("TOO_SHORT", "文本长度小于最小值");
+    if (length > validation.maxLength)
+      return failure("TOO_LONG", "文本长度超过最大值");
     if (validation.digitsOnly && !/^[0-9]+$/.test(value))
-      return failure("只能输入 ASCII 数字");
+      return failure("DIGITS_ONLY", "只能输入 ASCII 数字");
     return { ok: true, value, answered: true };
   }
   if (missing)
     return question.required
-      ? failure("此题为必答题")
+      ? failure("REQUIRED", "此题为必答题")
       : { ok: true, value: null, answered: false };
   const allowed = new Set(question.options.map((option) => option.optionId));
   if (question.type === "single") {
-    if (typeof candidate !== "string" || !allowed.has(candidate))
-      return failure("选项无效");
+    if (typeof candidate !== "string")
+      return failure("TYPE_MISMATCH", "单选答案必须是选项 ID 字符串");
+    if (!allowed.has(candidate)) return failure("UNKNOWN_OPTION", "选项无效");
     return { ok: true, value: candidate, answered: true };
   }
   if (question.type === "multiple") {
@@ -185,13 +200,12 @@ export function validateAnswer(
       !Array.isArray(candidate) ||
       candidate.some((item) => typeof item !== "string")
     )
-      return failure("多选答案必须是选项 ID 数组");
+      return failure("TYPE_MISMATCH", "多选答案必须是选项 ID 数组");
     const values = candidate as string[];
-    if (
-      new Set(values).size !== values.length ||
-      values.some((id) => !allowed.has(id))
-    )
-      return failure("多选答案包含重复或无效选项");
+    if (new Set(values).size !== values.length)
+      return failure("DUPLICATE_SELECTION", "多选答案包含重复选项");
+    if (values.some((id) => !allowed.has(id)))
+      return failure("UNKNOWN_OPTION", "多选答案包含无效选项");
     const validation = question.validation as Extract<
       QuestionValidation,
       { minSelections: number }
@@ -200,8 +214,15 @@ export function validateAnswer(
       values.length < validation.minSelections ||
       values.length > validation.maxSelections
     )
-      return failure("选择数量不符合要求");
-    return { ok: true, value: values, answered: true };
+      return failure("SELECTION_COUNT", "选择数量不符合要求");
+    const selected = new Set(values);
+    return {
+      ok: true,
+      value: question.options
+        .map((option) => option.optionId)
+        .filter((optionId) => selected.has(optionId)),
+      answered: true,
+    };
   }
   if (question.type === "number") {
     if (
@@ -209,21 +230,23 @@ export function validateAnswer(
       !Number.isFinite(candidate) ||
       Math.abs(candidate) > safeMaximum
     )
-      return failure("必须是安全范围内的有限数值");
+      return typeof candidate === "number"
+        ? failure("OUT_OF_RANGE", "必须是安全范围内的有限数值")
+        : failure("TYPE_MISMATCH", "数字题答案必须是数值");
     const value = Object.is(candidate, -0) ? 0 : candidate;
     const validation = question.validation as Extract<
       QuestionValidation,
       { integerOnly: boolean }
     >;
     if (validation.integerOnly && !Number.isInteger(value))
-      return failure("必须是整数");
+      return failure("NOT_INTEGER", "必须是整数");
     if (validation.minValue !== null && value < validation.minValue)
-      return failure("数值小于最小值");
+      return failure("OUT_OF_RANGE", "数值小于最小值");
     if (validation.maxValue !== null && value > validation.maxValue)
-      return failure("数值大于最大值");
+      return failure("OUT_OF_RANGE", "数值大于最大值");
     return { ok: true, value, answered: true };
   }
-  return failure("答案类型错误");
+  return failure("TYPE_MISMATCH", "答案类型错误");
 }
 
 function canonicalRoutingAnswer(

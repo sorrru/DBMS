@@ -76,6 +76,9 @@ export interface AppEnv {
   fillSessionRateLimitWindowMs: number;
   fillSessionAccountIpMax: number;
   fillSessionIpMax: number;
+  submissionRateLimitWindowMs: number;
+  submissionAccountMax: number;
+  submissionSessionMax: number;
 }
 
 export function loadEnv(
@@ -142,6 +145,24 @@ export function loadEnv(
       source,
       "FILL_SESSION_RATE_LIMIT_IP_MAX",
       100,
+      10_000,
+    ),
+    submissionRateLimitWindowMs: boundedInteger(
+      source,
+      "SUBMISSION_RATE_LIMIT_WINDOW_MS",
+      900_000,
+      86_400_000,
+    ),
+    submissionAccountMax: boundedInteger(
+      source,
+      "SUBMISSION_RATE_LIMIT_ACCOUNT_MAX",
+      60,
+      10_000,
+    ),
+    submissionSessionMax: boundedInteger(
+      source,
+      "SUBMISSION_RATE_LIMIT_SESSION_MAX",
+      10,
       10_000,
     ),
   });

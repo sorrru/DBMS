@@ -1,12 +1,14 @@
-import { Router, type Request } from "express";
+import express, { Router, type Request } from "express";
 import type { AuthDependencies } from "../auth/router.js";
 import { requireCurrentUser } from "../auth/current-user.js";
 import { validationError } from "../errors/api-error.js";
 import {
+  clearFillSessionCookie,
   readFillSessionCookie,
   setFillSessionCookie,
 } from "../http/cookies.js";
 import { FillService } from "./service.js";
+import { parseSubmissionBody } from "./submission-validation.js";
 
 const ipOf = (request: Request) =>
   request.ip ?? request.socket.remoteAddress ?? "unknown";
@@ -69,6 +71,54 @@ export function createFillRouter(
       ),
     );
   });
+
+  const submissionJson = express.json({ limit: "4mb" });
+  router.post(
+    "/sessions/:sessionId/submit",
+    async (request, response, next) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const sessionId = request.params.sessionId!;
+      const preflight = await service.preflightSubmission(
+        user._id,
+        sessionId,
+        readFillSessionCookie(request),
+      );
+      if (preflight) {
+        clearFillSessionCookie(response, sessionId, deps.env.production);
+        response.status(200).json(preflight.body);
+        return;
+      }
+      deps.rateLimits.consume(
+        `submission-account:${user._id.toString()}`,
+        deps.env.submissionAccountMax,
+        deps.env.submissionRateLimitWindowMs,
+      );
+      deps.rateLimits.consume(
+        `submission-session:${sessionId}`,
+        deps.env.submissionSessionMax,
+        deps.env.submissionRateLimitWindowMs,
+      );
+      await service.assertSubmissionActive(
+        user._id,
+        sessionId,
+        readFillSessionCookie(request),
+      );
+      response.locals.submissionUserId = user._id;
+      next();
+    },
+    submissionJson,
+    async (request, response) => {
+      const sessionId = request.params.sessionId!;
+      const submitted = await service.submit(
+        response.locals.submissionUserId,
+        sessionId,
+        readFillSessionCookie(request),
+        parseSubmissionBody(request.body),
+      );
+      clearFillSessionCookie(response, sessionId, deps.env.production);
+      response.status(submitted.created ? 201 : 200).json(submitted.body);
+    },
+  );
 
   return router;
 }

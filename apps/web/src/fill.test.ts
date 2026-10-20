@@ -6,6 +6,7 @@ import {
   restoreFillDraft,
   safeFillReturnPath,
   saveFillDraft,
+  submitFillSession,
 } from "./fill";
 
 const version: PublicFillVersion = {
@@ -78,5 +79,38 @@ describe("untrusted local fill drafts", () => {
       "answer",
     );
     expect(restoreFillDraft("s2", version)).toBeUndefined();
+  });
+});
+
+describe("formal submission", () => {
+  it("sends only the documented answers envelope", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        submission: {
+          id: "response1",
+          submittedAt: "2027-01-01T00:00:00.000Z",
+          versionId: "version1",
+          questionPath: ["q_text"],
+          ignoredQuestionIds: [],
+          alreadySubmitted: false,
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await submitFillSession("session1", [
+      { questionId: "q_text", value: "answer" },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/public/sessions/session1/submit",
+      expect.objectContaining({
+        credentials: "include",
+        method: "POST",
+        body: JSON.stringify({
+          answers: [{ questionId: "q_text", value: "answer" }],
+        }),
+      }),
+    );
   });
 });

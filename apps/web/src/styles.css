@@ -712,6 +712,16 @@ select {
   line-height: 1.45;
 }
 
+.fill-success {
+  border-color: #b9ddc7;
+  background: #f4fbf6;
+}
+
+.fill-success p:not(.eyebrow) {
+  color: #526174;
+  overflow-wrap: anywhere;
+}
+
 .fill-progress {
   margin-bottom: 0.4rem;
   color: #627083;

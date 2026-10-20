@@ -21,9 +21,12 @@ import {
   restoreFillDraft,
   resumeFillSession,
   saveFillDraft,
+  submitFillSession,
   type FillRoute,
   type FillSessionResponse,
   type PublicSurvey,
+  type SubmissionIssue,
+  type SubmissionResponse,
 } from "./fill";
 
 const props = defineProps<{ route: FillRoute; user?: PublicUser }>();
@@ -34,8 +37,10 @@ const emit = defineEmits<{
 
 const loading = ref(true);
 const starting = ref(false);
+const submitting = ref(false);
 const summary = ref<PublicSurvey>();
 const active = ref<FillSessionResponse>();
+const completed = ref<SubmissionResponse["submission"]>();
 const error = ref("");
 const answerError = ref("");
 const currentIndex = ref(0);
@@ -45,6 +50,7 @@ const remainingSeconds = ref(0);
 const storageWarning = ref("");
 const answers = reactive<Record<string, string | string[] | number>>({});
 const numberInputs = reactive<Record<string, string>>({});
+const serverIssues = reactive<Record<string, SubmissionIssue>>({});
 let timer: number | undefined;
 let draftTimer: number | undefined;
 let serverStartedAt = 0;
@@ -77,9 +83,12 @@ function handleSessionError(cause: unknown): void {
       return;
     }
     if (
-      ["SESSION_NOT_FOUND", "SESSION_EXPIRED", "SURVEY_EXPIRED"].includes(
-        cause.code,
-      )
+      [
+        "SESSION_NOT_FOUND",
+        "SESSION_EXPIRED",
+        "SURVEY_EXPIRED",
+        "SURVEY_CLOSED",
+      ].includes(cause.code)
     )
       removeDraft();
   }
@@ -202,6 +211,7 @@ function goNext(): void {
   const question = currentQuestion.value;
   if (!question) return;
   answerError.value = "";
+  delete serverIssues[question.questionId];
   const result = validateAnswer(question, candidate(question));
   if (!result.ok) {
     answerError.value = result.reason;
@@ -234,6 +244,62 @@ function goNext(): void {
       if (!kept.has(id)) delete answers[id];
   }
   currentIndex.value += 1;
+}
+
+function submissionIssues(cause: ApiClientError): SubmissionIssue[] {
+  const raw = cause.details?.issues;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is SubmissionIssue =>
+    Boolean(
+      item &&
+      typeof item === "object" &&
+      typeof (item as SubmissionIssue).questionId === "string" &&
+      typeof (item as SubmissionIssue).message === "string",
+    ),
+  );
+}
+
+async function submitAnswers(): Promise<void> {
+  if (!active.value || submitting.value) return;
+  submitting.value = true;
+  error.value = "";
+  Object.keys(serverIssues).forEach((questionId) => {
+    delete serverIssues[questionId];
+  });
+  try {
+    const payload = Object.entries(answers).map(([questionId, value]) => ({
+      questionId,
+      value,
+    }));
+    const result = await submitFillSession(active.value.session.id, payload);
+    result.submission.ignoredQuestionIds.forEach((questionId) => {
+      delete answers[questionId];
+      delete numberInputs[questionId];
+    });
+    clearFillDraft(active.value.session.id, active.value.version.id);
+    completed.value = result.submission;
+    if (timer !== undefined) window.clearInterval(timer);
+  } catch (cause) {
+    if (
+      cause instanceof ApiClientError &&
+      cause.code === "ANSWER_VALIDATION_FAILED"
+    ) {
+      const issues = submissionIssues(cause);
+      issues.forEach((issue) => {
+        serverIssues[issue.questionId] = issue;
+      });
+      const first = issues[0];
+      if (first) {
+        reviewing.value = false;
+        const position = visited.value.indexOf(first.questionId);
+        if (position >= 0) currentIndex.value = position;
+        answerError.value = first.message;
+      }
+      error.value = "请修改标出的回答后重新提交。";
+    } else handleSessionError(cause);
+  } finally {
+    submitting.value = false;
+  }
 }
 
 function goBack(): void {
@@ -339,6 +405,21 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
+      <section v-if="completed" class="fill-question-card fill-success">
+        <p class="eyebrow">提交成功</p>
+        <h3>
+          {{
+            completed.alreadySubmitted ? "该回答此前已提交成功" : "感谢您的填写"
+          }}
+        </h3>
+        <p>提交编号：{{ completed.id }}</p>
+        <p>
+          提交时间：{{
+            new Date(completed.submittedAt).toLocaleString("zh-CN")
+          }}
+        </p>
+      </section>
+
       <template v-else-if="questions.length">
         <section v-if="reviewing" class="fill-question-card">
           <p class="eyebrow">提交前检查</p>
@@ -356,12 +437,25 @@ onBeforeUnmount(() => {
               </template>
             </li>
           </ol>
-          <p class="notice">
-            本里程碑只完成填写与复核；正式提交将在下一步接入。
-          </p>
-          <button class="secondary" type="button" @click="goBack">
-            返回修改
-          </button>
+          <p class="notice">提交后不能修改，请确认内容无误。</p>
+          <div class="fill-actions">
+            <button
+              class="secondary"
+              type="button"
+              :disabled="submitting"
+              @click="goBack"
+            >
+              返回修改
+            </button>
+            <button
+              class="primary"
+              type="button"
+              :disabled="submitting"
+              @click="submitAnswers"
+            >
+              {{ submitting ? "正在提交…" : "确认提交" }}
+            </button>
+          </div>
         </section>
 
         <section v-else-if="currentQuestion" class="fill-question-card">
@@ -429,6 +523,12 @@ onBeforeUnmount(() => {
             placeholder="请输入数字"
           />
           <p v-if="answerError" class="field-error">{{ answerError }}</p>
+          <p
+            v-else-if="serverIssues[currentQuestion.questionId]"
+            class="field-error"
+          >
+            {{ serverIssues[currentQuestion.questionId]?.message }}
+          </p>
           <div class="fill-actions">
             <button
               class="secondary"

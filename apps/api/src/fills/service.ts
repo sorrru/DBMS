@@ -4,20 +4,34 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
-import { computeSessionState, computeSurveyStatus } from "@survey/survey-logic";
-import { isValidObjectId, Types } from "mongoose";
+import {
+  computePath,
+  computeSessionState,
+  computeSurveyStatus,
+  validateAnswer,
+  validateForPublish,
+  type AnswerIssueCode,
+} from "@survey/survey-logic";
+import mongoose, { isValidObjectId, Types, type ClientSession } from "mongoose";
 import type { AppEnv } from "../config/env.js";
 import { ApiError } from "../errors/api-error.js";
 import { FillSessionModel, type FillSession } from "../models/fill-session.js";
+import {
+  SurveyResponseModel,
+  type StoredAnswer,
+  type SurveyResponse,
+} from "../models/response.js";
 import { SurveyModel, type Survey } from "../models/survey.js";
 import {
   SurveyVersionModel,
   type SurveyVersion,
 } from "../models/survey-version.js";
+import type { SubmissionAnswerInput } from "./submission-validation.js";
 
 type LeanSurvey = Survey & { _id: Types.ObjectId };
 type LeanVersion = SurveyVersion & { _id: Types.ObjectId };
 type LeanFillSession = FillSession & { _id: Types.ObjectId };
+type LeanResponse = SurveyResponse & { _id: Types.ObjectId };
 
 const sevenDaysMs = 7 * 24 * 60 * 60 * 1_000;
 const slotCount = 5;
@@ -26,6 +40,18 @@ export type SubmissionLookup = (
   surveyVersionId: Types.ObjectId,
   ownerKey: string,
 ) => Promise<boolean>;
+
+export interface SubmissionTestHooks {
+  afterSessionSubmitted?: () => Promise<void> | void;
+  afterResponseCreated?: () => Promise<void> | void;
+}
+
+export interface SubmissionIssue {
+  questionId: string;
+  code: AnswerIssueCode;
+  path: string;
+  message: string;
+}
 
 function duplicateKeyPattern(error: unknown): Record<string, unknown> | null {
   const candidate = error as {
@@ -48,6 +74,31 @@ const safeEqual = (left: string, right: string): boolean => {
     timingSafeEqual(leftBytes, rightBytes)
   );
 };
+
+const storedSubmission = (
+  response: LeanResponse,
+  alreadySubmitted: boolean,
+) => ({
+  submission: {
+    id: response._id.toString(),
+    submittedAt: response.submittedAt.toISOString(),
+    versionId: response.surveyVersionId.toString(),
+    questionPath: response.questionPath,
+    ignoredQuestionIds: response.ignoredQuestionIds,
+    alreadySubmitted,
+  },
+});
+
+const defaultSubmissionLookup: SubmissionLookup = async (
+  surveyVersionId,
+  ownerKey,
+) =>
+  Boolean(
+    await SurveyResponseModel.exists({
+      surveyVersionId,
+      dedupKey: ownerKey,
+    }).exec(),
+  );
 
 export function deriveOwnerKey(
   secret: string,
@@ -113,7 +164,8 @@ export class FillService {
   constructor(
     private readonly env: Readonly<AppEnv>,
     private readonly clock: () => Date = () => new Date(),
-    private readonly hasSubmitted: SubmissionLookup = async () => false,
+    private readonly hasSubmitted: SubmissionLookup = defaultSubmissionLookup,
+    private readonly submissionHooks: SubmissionTestHooks = {},
   ) {}
 
   async ensureIndexes(): Promise<void> {
@@ -121,6 +173,7 @@ export class FillService {
       SurveyModel.init(),
       SurveyVersionModel.init(),
       FillSessionModel.init(),
+      SurveyResponseModel.init(),
     ]);
   }
 
@@ -283,6 +336,327 @@ export class FillService {
       },
       version: publicVersion(version!),
     };
+  }
+
+  async preflightSubmission(
+    userId: Types.ObjectId,
+    sessionId: string,
+    token?: string,
+  ): Promise<{ body: ReturnType<typeof storedSubmission> } | null> {
+    const fillSession = await this.ownedSession(userId, sessionId, token);
+    if (fillSession.status === "submitted") {
+      const saved = await this.responseForSession(fillSession._id);
+      return { body: storedSubmission(saved, true) };
+    }
+    return null;
+  }
+
+  async assertSubmissionActive(
+    userId: Types.ObjectId,
+    sessionId: string,
+    token?: string,
+  ): Promise<void> {
+    const fillSession = await this.ownedSession(userId, sessionId, token);
+    const [survey, version] = await this.sessionSurveyAndVersion(fillSession);
+    const now = this.clock();
+    const state = computeSessionState(fillSession, survey, version, now);
+    if (state === "closed")
+      throw new ApiError(409, "SURVEY_CLOSED", "问卷已手工关闭");
+    if (state === "survey_expired")
+      throw new ApiError(409, "SURVEY_EXPIRED", "该填写版本已超过截止时间");
+    if (state === "expired") {
+      await this.expire(fillSession._id);
+      throw new ApiError(409, "SESSION_EXPIRED", "填写会话已过期");
+    }
+  }
+
+  async submit(
+    userId: Types.ObjectId,
+    sessionId: string,
+    token: string | undefined,
+    inputs: SubmissionAnswerInput[],
+  ): Promise<{
+    created: boolean;
+    body: ReturnType<typeof storedSubmission>;
+  }> {
+    if (!token || !isValidObjectId(sessionId)) this.sessionNotFound();
+    await this.ensureIndexes();
+    const databaseSession = await mongoose.startSession();
+    let result:
+      | { created: boolean; body: ReturnType<typeof storedSubmission> }
+      | undefined;
+    try {
+      await databaseSession.withTransaction(async () => {
+        result = undefined;
+        const fillSession = await this.ownedSession(
+          userId,
+          sessionId,
+          token,
+          databaseSession,
+        );
+        if (fillSession.status === "submitted") {
+          const saved = await this.responseForSession(
+            fillSession._id,
+            databaseSession,
+          );
+          result = { created: false, body: storedSubmission(saved, true) };
+          return;
+        }
+        const [survey, version] = await this.sessionSurveyAndVersion(
+          fillSession,
+          databaseSession,
+        );
+        const now = this.clock();
+        const state = computeSessionState(fillSession, survey, version, now);
+        if (state === "closed")
+          throw new ApiError(409, "SURVEY_CLOSED", "问卷已手工关闭");
+        if (state === "survey_expired")
+          throw new ApiError(409, "SURVEY_EXPIRED", "该填写版本已超过截止时间");
+        if (state === "expired")
+          throw new ApiError(409, "SESSION_EXPIRED", "填写会话已过期");
+
+        const normalized = this.normalizeSubmission(version, inputs);
+        const updated = await FillSessionModel.updateOne(
+          {
+            _id: fillSession._id,
+            status: "active",
+            expiresAt: { $gt: now },
+          },
+          {
+            $set: {
+              status: "submitted",
+              submittedAt: now,
+              activeSlot: null,
+            },
+          },
+          { session: databaseSession },
+        ).exec();
+        if (updated.modifiedCount !== 1) {
+          const current = await FillSessionModel.findById(fillSession._id)
+            .session(databaseSession)
+            .lean<LeanFillSession>()
+            .exec();
+          if (current?.status === "submitted") {
+            const saved = await this.responseForSession(
+              fillSession._id,
+              databaseSession,
+            );
+            result = { created: false, body: storedSubmission(saved, true) };
+            return;
+          }
+          throw new ApiError(409, "SESSION_EXPIRED", "填写会话已过期");
+        }
+        await this.submissionHooks.afterSessionSubmitted?.();
+
+        const [created] = await SurveyResponseModel.create(
+          [
+            {
+              surveyId: fillSession.surveyId,
+              surveyVersionId: fillSession.surveyVersionId,
+              fillSessionId: fillSession._id,
+              ownerKey: fillSession.ownerKey,
+              ...(version.allowMultipleSubmissions
+                ? {}
+                : { dedupKey: fillSession.ownerKey }),
+              ...(fillSession.identityMode === "identified" &&
+              fillSession.userId
+                ? { respondentId: fillSession.userId }
+                : {}),
+              questionPath: normalized.questionPath,
+              ignoredQuestionIds: normalized.ignoredQuestionIds,
+              answers: normalized.answers,
+              submittedAt: now,
+            },
+          ],
+          { session: databaseSession },
+        );
+        await this.submissionHooks.afterResponseCreated?.();
+        const leanCreated = created!.toObject() as LeanResponse;
+        result = {
+          created: true,
+          body: storedSubmission(leanCreated, false),
+        };
+      });
+    } catch (error) {
+      const pattern = duplicateKeyPattern(error);
+      if (pattern?.surveyVersionId === 1 && pattern.dedupKey === 1)
+        throw new ApiError(
+          409,
+          "ALREADY_SUBMITTED",
+          "该账号已提交过这个问卷版本",
+        );
+      if (pattern?.fillSessionId === 1) {
+        const existing = await SurveyResponseModel.findOne({
+          fillSessionId: sessionId,
+        })
+          .lean<LeanResponse>()
+          .exec();
+        if (existing)
+          return {
+            created: false,
+            body: storedSubmission(existing, true),
+          };
+      }
+      throw error;
+    } finally {
+      await databaseSession.endSession();
+    }
+    if (!result)
+      throw new ApiError(500, "INTERNAL_ERROR", "回答事务未返回结果");
+    return result;
+  }
+
+  private normalizeSubmission(
+    version: LeanVersion,
+    inputs: SubmissionAnswerInput[],
+  ): {
+    questionPath: string[];
+    ignoredQuestionIds: string[];
+    answers: StoredAnswer[];
+  } {
+    const structure = validateForPublish(
+      version,
+      new Date(0),
+      this.env.jumpRuleMaxPerQuestion,
+    );
+    if (structure.errors.length) {
+      console.error("发布版本结构损坏", {
+        versionId: version._id.toString(),
+        errors: structure.errors,
+      });
+      throw new ApiError(409, "SURVEY_VERSION_INVALID", "问卷版本结构无效");
+    }
+    const questionsById = new Map(
+      version.questions.map((question) => [question.questionId, question]),
+    );
+    for (const input of inputs)
+      if (!questionsById.has(input.questionId))
+        throw new ApiError(400, "VALIDATION_ERROR", "题目不存在", {
+          field: `answers[${input.inputIndex}].questionId`,
+          path: `answers[${input.inputIndex}].questionId`,
+        });
+
+    const inputByQuestionId = new Map(
+      inputs.map((input) => [input.questionId, input]),
+    );
+    const routingAnswers = Object.fromEntries(
+      inputs.map((input) => [input.questionId, input.value]),
+    );
+    const path = computePath(version.questions, routingAnswers);
+    if (!path.ok || path.questionIds.some((id) => !questionsById.has(id))) {
+      console.error("提交时问卷路径出现循环或无效目标", {
+        versionId: version._id.toString(),
+        path,
+      });
+      throw new ApiError(409, "SURVEY_VERSION_INVALID", "问卷版本结构无效");
+    }
+
+    const issues: SubmissionIssue[] = [];
+    const answers: StoredAnswer[] = [];
+    for (const questionId of path.questionIds) {
+      const question = questionsById.get(questionId)!;
+      const input = inputByQuestionId.get(questionId);
+      const checked = validateAnswer(question, input?.value);
+      if (!checked.ok) {
+        issues.push({
+          questionId,
+          code: checked.code,
+          path: input ? `answers[${input.inputIndex}].value` : "",
+          message: checked.reason,
+        });
+      } else if (checked.answered) {
+        answers.push({
+          questionId,
+          value: checked.value as StoredAnswer["value"],
+        });
+      }
+    }
+    if (issues.length)
+      throw new ApiError(
+        400,
+        "ANSWER_VALIDATION_FAILED",
+        "部分回答不符合要求",
+        { issues: issues.slice(0, 100) },
+      );
+    const pathSet = new Set(path.questionIds);
+    const submittedIds = new Set(inputs.map((input) => input.questionId));
+    return {
+      questionPath: path.questionIds,
+      ignoredQuestionIds: version.questions
+        .map((question) => question.questionId)
+        .filter(
+          (questionId) =>
+            submittedIds.has(questionId) && !pathSet.has(questionId),
+        ),
+      answers,
+    };
+  }
+
+  private async ownedSession(
+    userId: Types.ObjectId,
+    sessionId: string,
+    token?: string,
+    databaseSession?: ClientSession,
+  ): Promise<LeanFillSession> {
+    if (!token || !isValidObjectId(sessionId)) this.sessionNotFound();
+    const query = FillSessionModel.findOne({
+      _id: sessionId,
+      sessionTokenHash: tokenHash(token!),
+    });
+    if (databaseSession) query.session(databaseSession);
+    const fillSession = await query.lean<LeanFillSession>().exec();
+    if (!fillSession) this.sessionNotFound();
+    const expectedOwnerKey = deriveOwnerKey(
+      this.env.anonymousIdSecret,
+      fillSession!.surveyId,
+      userId,
+    );
+    if (!safeEqual(fillSession!.ownerKey, expectedOwnerKey))
+      this.sessionNotFound();
+    return fillSession!;
+  }
+
+  private async sessionSurveyAndVersion(
+    fillSession: LeanFillSession,
+    databaseSession?: ClientSession,
+  ): Promise<[LeanSurvey, LeanVersion]> {
+    const surveyQuery = SurveyModel.findById(fillSession.surveyId);
+    const versionQuery = SurveyVersionModel.findOne({
+      _id: fillSession.surveyVersionId,
+      surveyId: fillSession.surveyId,
+      status: "published",
+    });
+    if (databaseSession) {
+      surveyQuery.session(databaseSession);
+      versionQuery.session(databaseSession);
+    }
+    const [survey, version] = await Promise.all([
+      surveyQuery.lean<LeanSurvey>().exec(),
+      versionQuery.lean<LeanVersion>().exec(),
+    ]);
+    if (!survey || !version) {
+      console.error("填写会话引用的问卷或版本不存在", {
+        fillSessionId: fillSession._id.toString(),
+      });
+      throw new ApiError(409, "SURVEY_VERSION_INVALID", "问卷版本结构无效");
+    }
+    return [survey, version];
+  }
+
+  private async responseForSession(
+    fillSessionId: Types.ObjectId,
+    databaseSession?: ClientSession,
+  ): Promise<LeanResponse> {
+    const query = SurveyResponseModel.findOne({ fillSessionId });
+    if (databaseSession) query.session(databaseSession);
+    const response = await query.lean<LeanResponse>().exec();
+    if (!response) {
+      console.error("已提交会话缺少回答文档", {
+        fillSessionId: fillSessionId.toString(),
+      });
+      throw new ApiError(409, "SURVEY_VERSION_INVALID", "提交记录结构无效");
+    }
+    return response;
   }
 
   private async releaseExpiredSlots(

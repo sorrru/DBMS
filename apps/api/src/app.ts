@@ -87,7 +87,17 @@ export function createApp(
     }),
   );
   app.use(contentTypeGuard);
-  app.use(express.json({ limit: "256kb" }));
+  const defaultJsonParser = express.json({ limit: "256kb" });
+  app.use((request, response, next) => {
+    const submissionPath =
+      request.method === "POST" &&
+      /^\/api\/public\/sessions\/[A-Za-z0-9]+\/submit$/.test(request.path);
+    if (submissionPath) {
+      next();
+      return;
+    }
+    defaultJsonParser(request, response, next);
+  });
 
   app.get("/api/health", async (_request, response) => {
     const database = await checkDatabaseStatus();

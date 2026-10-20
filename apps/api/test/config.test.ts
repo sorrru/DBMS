@@ -15,6 +15,21 @@ describe("loadEnv", () => {
     expect(loaded.fillSessionRateLimitWindowMs).toBe(900_000);
     expect(loaded.fillSessionAccountIpMax).toBe(20);
     expect(loaded.fillSessionIpMax).toBe(100);
+    expect(loaded.submissionRateLimitWindowMs).toBe(900_000);
+    expect(loaded.submissionAccountMax).toBe(60);
+    expect(loaded.submissionSessionMax).toBe(10);
+  });
+  it("bounds all submission rate-limit settings", () => {
+    expect(
+      loadEnv({ ...valid, SUBMISSION_RATE_LIMIT_WINDOW_MS: "86400000" })
+        .submissionRateLimitWindowMs,
+    ).toBe(86_400_000);
+    for (const [name, value] of [
+      ["SUBMISSION_RATE_LIMIT_WINDOW_MS", "86400001"],
+      ["SUBMISSION_RATE_LIMIT_ACCOUNT_MAX", "0"],
+      ["SUBMISSION_RATE_LIMIT_SESSION_MAX", "10001"],
+    ] as const)
+      expect(() => loadEnv({ ...valid, [name]: value })).toThrow(name);
   });
   it("bounds all fill-session rate-limit settings", () => {
     expect(

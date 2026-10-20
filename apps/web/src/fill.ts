@@ -37,6 +37,24 @@ export interface FillSessionResponse {
   version: PublicFillVersion;
 }
 
+export interface SubmissionIssue {
+  questionId: string;
+  code: string;
+  path: string;
+  message: string;
+}
+
+export interface SubmissionResponse {
+  submission: {
+    id: string;
+    submittedAt: string;
+    versionId: string;
+    questionPath: string[];
+    ignoredQuestionIds: string[];
+    alreadySubmitted: boolean;
+  };
+}
+
 export interface FillRoute {
   publicId: string;
   sessionId?: string;
@@ -78,6 +96,22 @@ export const createFillSession = (publicId: string) =>
 export const resumeFillSession = (sessionId: string) =>
   apiRequest<FillSessionResponse>(
     `/api/public/sessions/${encodeURIComponent(sessionId)}`,
+  );
+
+export const submitFillSession = (
+  sessionId: string,
+  answers: Array<{
+    questionId: string;
+    value: string | string[] | number | null;
+  }>,
+) =>
+  apiRequest<SubmissionResponse>(
+    `/api/public/sessions/${encodeURIComponent(sessionId)}/submit`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    },
   );
 
 export const fillDraftKey = (sessionId: string, versionId: string) =>

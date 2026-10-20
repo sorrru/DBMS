@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { assertLocalMongoUri } from "../database/local-safety.js";
 import { deriveOwnerKey } from "../fills/service.js";
 import { FillSessionModel } from "../models/fill-session.js";
+import { SurveyResponseModel } from "../models/response.js";
 import { SurveyModel } from "../models/survey.js";
 import { SurveyVersionModel } from "../models/survey-version.js";
 import { UserModel } from "../models/user.js";
@@ -65,6 +66,7 @@ async function main(): Promise<void> {
     SurveyModel.init(),
     SurveyVersionModel.init(),
     FillSessionModel.init(),
+    SurveyResponseModel.init(),
   ]);
   await cleanSeedData();
   if (process.argv.includes("--clean")) {
@@ -113,13 +115,13 @@ async function main(): Promise<void> {
     [{ text: "满意" }, { text: "一般" }, { text: "不满意" }],
     true,
   );
-  await addAnonymousQuestion(
+  const helpful = await addAnonymousQuestion(
     "multiple",
     "哪些内容最有帮助？",
     { minSelections: 1, maxSelections: 2 },
     [{ text: "课堂讲解" }, { text: "课程实验" }, { text: "课后讨论" }],
   );
-  await addAnonymousQuestion(
+  const contact = await addAnonymousQuestion(
     "text",
     "联系电话（仅 ASCII 数字）",
     { minLength: 7, maxLength: 20, digitsOnly: true },
@@ -161,6 +163,43 @@ async function main(): Promise<void> {
     anonymous.id,
     anonymous.draftVersion!.id,
   );
+  const anonymousSubmittedAt = new Date(Date.now() - 10 * 60_000);
+  const anonymousFillSessionId = new mongoose.Types.ObjectId();
+  const anonymousOwnerKey = deriveOwnerKey(
+    env.anonymousIdSecret,
+    anonymous.id,
+    user._id,
+  );
+  await FillSessionModel.create({
+    _id: anonymousFillSessionId,
+    surveyId: anonymous.id,
+    surveyVersionId: anonymous.draftVersion!.id,
+    identityMode: "anonymous",
+    ownerKey: anonymousOwnerKey,
+    sessionTokenHash: createHash("sha256")
+      .update(randomBytes(32))
+      .digest("hex"),
+    status: "submitted",
+    activeSlot: null,
+    startedAt: new Date(anonymousSubmittedAt.getTime() - 5 * 60_000),
+    expiresAt: new Date(anonymousSubmittedAt.getTime() + 25 * 60_000),
+    purgeAt: new Date(anonymousSubmittedAt.getTime() + 7 * 24 * 60 * 60_000),
+    submittedAt: anonymousSubmittedAt,
+  });
+  await SurveyResponseModel.create({
+    surveyId: anonymous.id,
+    surveyVersionId: anonymous.draftVersion!.id,
+    fillSessionId: anonymousFillSessionId,
+    ownerKey: anonymousOwnerKey,
+    dedupKey: anonymousOwnerKey,
+    questionPath: [satisfaction.questionId, studyHours.questionId],
+    ignoredQuestionIds: [helpful.questionId, contact.questionId],
+    answers: [
+      { questionId: satisfaction.questionId, value: dissatisfied.optionId },
+      { questionId: studyHours.questionId, value: 6.5 },
+    ],
+    submittedAt: anonymousSubmittedAt,
+  });
   const oldSessionStartedAt = new Date(Date.now() - 45 * 60_000);
   const oldSessionExpiresAt = new Date(Date.now() - 15 * 60_000);
   await FillSessionModel.create({
@@ -184,7 +223,7 @@ async function main(): Promise<void> {
     identified.id,
     identified.draftVersion!.id,
     1,
-    { identityMode: "identified" },
+    { identityMode: "identified", allowMultipleSubmissions: true },
   );
   const identifiedQuestion = await surveys.addQuestion(
     user._id,
@@ -206,6 +245,46 @@ async function main(): Promise<void> {
     identifiedQuestion.version.revision,
     false,
   );
+  const identifiedSubmittedAt = new Date(Date.now() - 5 * 60_000);
+  const identifiedFillSessionId = new mongoose.Types.ObjectId();
+  const identifiedOwnerKey = deriveOwnerKey(
+    env.anonymousIdSecret,
+    identified.id,
+    user._id,
+  );
+  await FillSessionModel.create({
+    _id: identifiedFillSessionId,
+    surveyId: identified.id,
+    surveyVersionId: identified.draftVersion!.id,
+    identityMode: "identified",
+    ownerKey: identifiedOwnerKey,
+    userId: user._id,
+    sessionTokenHash: createHash("sha256")
+      .update(randomBytes(32))
+      .digest("hex"),
+    status: "submitted",
+    activeSlot: null,
+    startedAt: new Date(identifiedSubmittedAt.getTime() - 4 * 60_000),
+    expiresAt: new Date(identifiedSubmittedAt.getTime() + 26 * 60_000),
+    purgeAt: new Date(identifiedSubmittedAt.getTime() + 7 * 24 * 60 * 60_000),
+    submittedAt: identifiedSubmittedAt,
+  });
+  await SurveyResponseModel.create({
+    surveyId: identified.id,
+    surveyVersionId: identified.draftVersion!.id,
+    fillSessionId: identifiedFillSessionId,
+    ownerKey: identifiedOwnerKey,
+    respondentId: user._id,
+    questionPath: [identifiedQuestion.version.questions[0]!.questionId],
+    ignoredQuestionIds: [],
+    answers: [
+      {
+        questionId: identifiedQuestion.version.questions[0]!.questionId,
+        value: "种子用户",
+      },
+    ],
+    submittedAt: identifiedSubmittedAt,
+  });
   await surveys.setStatus(user._id, identified.id, "closed");
 
   const expired = await surveys.create(user._id, "已到期问卷（种子）");
@@ -234,7 +313,7 @@ async function main(): Promise<void> {
     { $set: { deadline: new Date("2020-01-01T00:00:00.000Z") } },
   );
   console.info(
-    `种子数据已创建：${seedUsername}，包含匿名、实名、已发布 v1 + 草稿 v2、关闭、到期、旧版本会话、四种题型和有效分支`,
+    `种子数据已创建：${seedUsername}，包含匿名/实名回答、允许/禁止重复、已发布 v1 + 草稿 v2、关闭、到期、旧版本会话、四种题型和有效分支`,
   );
 }
 
