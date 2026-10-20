@@ -16,6 +16,7 @@ import { FixedWindowStore } from "./security/rate-limit.js";
 import { TokenService } from "./security/token.js";
 import { createSurveyRouter } from "./surveys/router.js";
 import { createFillRouter } from "./fills/router.js";
+import { createStatisticsRouter } from "./statistics/router.js";
 
 export interface HealthResponse {
   status: "ok" | "degraded";
@@ -111,6 +112,7 @@ export function createApp(
 
   app.use("/api/auth", createAuthRouter(authDependencies));
   app.use("/api/public", createFillRouter(authDependencies, clock));
+  app.use("/api/surveys", createStatisticsRouter(authDependencies, clock));
   app.use("/api/surveys", createSurveyRouter(authDependencies));
   app.use("/api", (_request, _response, next) =>
     next(new ApiError(404, "NOT_FOUND", "接口不存在")),

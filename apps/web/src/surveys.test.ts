@@ -5,6 +5,8 @@ import {
   clearSettingsDraft,
   deleteQuestion,
   findSettingsDraft,
+  getVersionStatistics,
+  listTextResponses,
   publishVersion,
   saveSettingsDraft,
   updateJumpRules,
@@ -21,6 +23,32 @@ vi.stubGlobal("sessionStorage", {
     return values.size;
   },
   key: (index: number) => [...values.keys()][index] ?? null,
+});
+
+describe("statistics requests", () => {
+  it("uses version-scoped relative URLs and safely encodes text cursors", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ questions: [], items: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await getVersionStatistics("s1", "v2");
+    await listTextResponses("s1", "v2", "q_text", "v1.part+/=");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/surveys/s1/versions/v2/statistics",
+      { credentials: "include" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/surveys/s1/versions/v2/responses?questionId=q_text&limit=20&cursor=v1.part%2B%2F%3D",
+      { credentials: "include" },
+    );
+  });
 });
 const base: DraftFields = {
   title: "标题",

@@ -554,7 +554,7 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 
 事务内每次重试重新取得 now，先用 active 与 expiresAt 条件把会话更新为 submitted、清空 activeSlot，再插入 response。两个写入使用相同 submittedAt；任何失败完全回滚。禁止重复由 `(surveyVersionId,dedupKey)` 条件唯一索引保证，同会话唯一性由 fillSessionId 唯一索引保证。完整约定见 `RESPONSE_SUBMISSION_DESIGN.md`。
 
-## 按版本统计（里程碑 9 待实现）
+## 按版本统计
 
 ### `GET /api/surveys/:surveyId/versions/:versionId/statistics`
 
@@ -619,4 +619,4 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期、公开填写会话和正式回答提交均已实现并验收；按版本统计尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期、公开填写会话、正式回答提交和按版本统计均已实现；统计界面尚待人工验收。

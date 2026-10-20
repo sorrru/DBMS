@@ -88,6 +88,53 @@ export interface StoredDraft {
   savedAt: string;
 }
 
+export interface StatisticsOption {
+  optionId: string;
+  text: string;
+  count: number;
+  percentageOfAnswered: number;
+}
+export interface QuestionStatistics {
+  questionId: string;
+  type: QuestionType;
+  title: string;
+  required: boolean;
+  reachedCount: number;
+  answeredCount: number;
+  notReachedCount: number;
+  unansweredReachedCount: number;
+  reachRate: number;
+  answerRate: number;
+  options?: StatisticsOption[];
+  number?: {
+    count: number;
+    average: number | null;
+    minimum: number | null;
+    maximum: number | null;
+  };
+}
+export interface VersionStatistics {
+  surveyId: string;
+  versionId: string;
+  versionNumber: number;
+  title: string;
+  submissionCount: number;
+  generatedAt: string;
+  questions: QuestionStatistics[];
+}
+export interface TextResponseItem {
+  value: string;
+  submittedDate?: string;
+  submittedAt?: string;
+  respondent?: { id: string; username: string } | null;
+}
+export interface TextResponsePage {
+  question: { questionId: string; title: string; required: boolean };
+  identityMode: "anonymous" | "identified";
+  items: TextResponseItem[];
+  nextCursor: string | null;
+}
+
 const jsonPatch = (body: unknown): RequestInit => ({
   method: "PATCH",
   headers: { "Content-Type": "application/json" },
@@ -268,6 +315,21 @@ export const setSurveyStatus = (
   apiRequest<{ survey: SurveySummary }>(
     `/api/surveys/${surveyId}/status`,
     jsonPatch({ manualStatus }),
+  );
+
+export const getVersionStatistics = (surveyId: string, versionId: string) =>
+  apiRequest<VersionStatistics>(
+    `/api/surveys/${surveyId}/versions/${versionId}/statistics`,
+  );
+
+export const listTextResponses = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  cursor?: string,
+) =>
+  apiRequest<TextResponsePage>(
+    `/api/surveys/${surveyId}/versions/${versionId}/responses?questionId=${encodeURIComponent(questionId)}&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
   );
 
 const prefix = (surveyId: string, versionId: string) =>

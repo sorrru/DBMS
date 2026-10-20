@@ -20,6 +20,7 @@ import FillPage from "./FillPage.vue";
 import JumpRuleEditor from "./JumpRuleEditor.vue";
 import PublishedVersionView from "./PublishedVersionView.vue";
 import QuestionEditor from "./QuestionEditor.vue";
+import StatisticsView from "./StatisticsView.vue";
 import { fetchHealth, type HealthResponse } from "./health";
 import { parseFillRoute, safeFillReturnPath, type FillRoute } from "./fill";
 import {
@@ -909,6 +910,12 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
               >
                 第 {{ index + 1 }} 题
               </button>
+              <button
+                type="button"
+                @click="scrollToEditorTarget('version-statistics')"
+              >
+                回答统计
+              </button>
             </div>
           </nav>
           <div class="editor-content">
@@ -1236,6 +1243,12 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
               <PublishedVersionView
                 v-if="selectedVersion.status === 'published'"
                 :version="selectedVersion"
+              />
+              <StatisticsView
+                v-if="selectedVersion.status === 'published'"
+                :survey-id="selectedSurvey.id"
+                :version-id="selectedVersion.id"
+                @failure="showError"
               />
             </div>
           </div>

@@ -1067,3 +1067,86 @@ input:focus {
     align-items: flex-start;
   }
 }
+.statistics-shell {
+  scroll-margin-top: 1rem;
+}
+
+.statistics-total {
+  margin: 0.75rem 0 1rem;
+}
+
+.statistics-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.statistics-question {
+  border: 1px solid #dce4ee;
+  border-radius: 0.8rem;
+  padding: 1rem;
+  background: #f8fafc;
+}
+
+.statistics-question > header,
+.statistics-options li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.statistics-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+  color: #526174;
+}
+
+.statistics-options,
+.text-response-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.statistics-options li,
+.text-response-list li {
+  border-top: 1px solid #e3e9f0;
+  padding-top: 0.6rem;
+}
+
+.statistics-number {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.statistics-number div {
+  border-radius: 0.6rem;
+  padding: 0.7rem;
+  background: white;
+}
+
+.statistics-number dt,
+.privacy-note,
+.text-response-list small {
+  color: #66758a;
+  font-size: 0.85rem;
+}
+
+.statistics-number dd {
+  margin: 0.25rem 0 0;
+  font-weight: 700;
+}
+
+.text-responses {
+  margin-top: 0.8rem;
+}
+
+.text-response-list p {
+  margin: 0.3rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

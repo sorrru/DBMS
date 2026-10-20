@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx src/scripts/seed.ts",
-    "seed:clean": "tsx src/scripts/seed.ts --clean"
+    "seed:clean": "tsx src/scripts/seed.ts --clean",
+    "statistics:benchmark": "tsx src/scripts/statistics-benchmark.ts",
+    "statistics:benchmark:clean": "tsx src/scripts/statistics-benchmark.ts --clean"
   },
   "dependencies": {
     "@survey/survey-logic": "0.1.0",

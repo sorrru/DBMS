@@ -18,6 +18,17 @@ describe("loadEnv", () => {
     expect(loaded.submissionRateLimitWindowMs).toBe(900_000);
     expect(loaded.submissionAccountMax).toBe(60);
     expect(loaded.submissionSessionMax).toBe(10);
+    expect(loaded.statisticsRateLimitWindowMs).toBe(60_000);
+    expect(loaded.statisticsRateLimitUserMax).toBe(30);
+    expect(loaded.statisticsMaxTimeMs).toBe(10_000);
+  });
+  it("bounds statistics settings", () => {
+    for (const [name, value] of [
+      ["STATISTICS_RATE_LIMIT_WINDOW_MS", "86400001"],
+      ["STATISTICS_RATE_LIMIT_USER_MAX", "0"],
+      ["STATISTICS_MAX_TIME_MS", "60001"],
+    ] as const)
+      expect(() => loadEnv({ ...valid, [name]: value })).toThrow(name);
   });
   it("bounds all submission rate-limit settings", () => {
     expect(
