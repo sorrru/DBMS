@@ -554,6 +554,29 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 
 事务内每次重试重新取得 now，先用 active 与 expiresAt 条件把会话更新为 submitted、清空 activeSlot，再插入 response。两个写入使用相同 submittedAt；任何失败完全回滚。禁止重复由 `(surveyVersionId,dedupKey)` 条件唯一索引保证，同会话唯一性由 fillSessionId 唯一索引保证。完整约定见 `RESPONSE_SUBMISSION_DESIGN.md`。
 
+## 按版本统计（里程碑 9 待实现）
+
+### `GET /api/surveys/:surveyId/versions/:versionId/statistics`
+
+只允许问卷创建者读取已发布版本；草稿返回 `VERSION_NOT_PUBLISHED`。不接受任何查询参数。成功返回版本标题、提交总数、生成时间和全部题目的统计。每题固定包含 `questionId`、`type`、`title`、`required`、`reachedCount`、`answeredCount`、`notReachedCount`、`unansweredReachedCount`、`reachRate` 和 `answerRate`。
+
+单选、多选按发布版本选项顺序返回 count 与 percentageOfAnswered；数字题返回 count、average、minimum、maximum，无数值答案时后三项为 null；文本正文不进入统计摘要。比例分母为零时返回 0，其他结果不提前按显示位数舍入。
+
+统计在 `readConcern: snapshot` 的只读事务中执行五条有 `maxTimeMS` 的聚合：提交总数、路径到达、题目回答、合并选择题选项和数字汇总。事务内禁止 explain、`$out` 和 `$merge`。超时或无法完成快照返回 `503 STATISTICS_UNAVAILABLE`。
+
+### `GET /api/surveys/:surveyId/versions/:versionId/responses`
+
+只分页读取文本题回答。查询参数：
+
+- `questionId` 必填，必须是目标发布版本中的文本题；
+- `limit` 缺省 20，必须是 1–50 的整数；
+- `cursor` 可选，必须是绑定当前问卷、版本和题目的 AES-256-GCM 不透明游标；
+- 未知查询参数返回 `VALIDATION_ERROR`。
+
+分页先以 `surveyVersionId`、`answers.questionId` 和游标范围 `$match`，按 `submittedAt DESC, _id DESC` 沿既有索引排序并多取一条，最后通过 `$filter` 和 `$arrayElemAt` 投影目标文本。实名页以一次 `_id: {$in: [...]}` 批量读取账号。
+
+匿名项只返回 value 和 UTC `submittedDate`，不返回 ID、精确时间或身份字段；实名项返回 value、精确 submittedAt 和 respondent 的 id、username。匿名页游标使用从 JWT_SECRET 和专用标签派生的 AES-256-GCM 密钥，随机 IV 与认证标签同时保证机密性和防篡改。完整隐私边界、管道和测试约定见 `STATISTICS_DESIGN.md`。
+
 ## 稳定错误码
 
 | HTTP | 错误码                         | 含义                                                       |
@@ -587,10 +610,12 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 |  409 | `SESSION_LIMIT_REACHED`        | 同一账号在同一问卷已有五个活动会话                         |
 |  409 | `ALREADY_SUBMITTED`            | 禁止重复时当前 ownerKey 已向该版本提交                     |
 |  409 | `SURVEY_VERSION_INVALID`       | 发布版本内部结构损坏，无法可信计算提交路径                 |
+|  409 | `VERSION_NOT_PUBLISHED`        | 统计目标版本不是已发布版本                                 |
 |  413 | `PAYLOAD_TOO_LARGE`            | 普通 JSON 超过 256 KiB，或提交正文超过 4 MiB               |
 |  415 | `UNSUPPORTED_MEDIA_TYPE`       | 带请求体的接口未使用 `application/json`                    |
 |  429 | `RATE_LIMITED`                 | 请求超过限流；响应含 `Retry-After`                         |
 |  500 | `INTERNAL_ERROR`               | 未预期服务错误，不向客户端暴露内部信息                     |
+|  503 | `STATISTICS_UNAVAILABLE`       | 统计查询超时或暂时无法取得一致快照                         |
 
 ## 当前实现边界
 

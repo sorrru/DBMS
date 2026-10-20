@@ -378,19 +378,28 @@
 
 目标：创建者可以查看指定版本的统计结果。
 
-- [ ] 使用 MongoDB Aggregation Pipeline 统计。
-- [ ] 统计 `reachedCount` 和 `answeredCount`。
-- [ ] 统计单选选项人数。
-- [ ] 统计多选选项次数。
-- [ ] 分页查看文本回答。
-- [ ] 计算数字平均值、最小值和最大值。
-- [ ] 严格按 `surveyVersionId` 隔离。
-- [ ] 匿名统计和回答接口移除身份字段。
-- [ ] 实现版本统计前端。
-- [ ] 用手工计算结果核对系统统计。
-- [ ] 对版本回答查询和核心统计聚合运行 `explain("executionStats")`，保存关键输出并证明使用预期索引。
+- [ ] 完成 `docs/STATISTICS_DESIGN.md` 候选设计与人工复核，确认加密游标、快照事务、分页管道、匿名边界和实验方法后再实现。
+- [ ] 统计只开放给已发布版本；草稿返回 `VERSION_NOT_PUBLISHED`，越权统一 404，两个接口设置 `Cache-Control: no-store`。
+- [ ] 实现五条职责单一的 MongoDB 聚合：提交总数、路径到达、题目回答、合并选择题选项和数字汇总；全部先按 `surveyVersionId` 匹配并尽早投影。
+- [ ] 在一个 `readConcern: snapshot` 的只读事务中运行全部统计管道，逐条显式传 session 和 `maxTimeMS`；事务内不使用 `$out`、`$merge` 或 explain。
+- [ ] 增加每用户统计限流和三个启动配置；超时或快照失败稳定返回 `503 STATISTICS_UNAVAILABLE`。
+- [ ] 返回 `reachedCount`、`answeredCount`、`notReachedCount`、`unansweredReachedCount`、reachRate、answerRate 和 required；比例分母为零时返回 0。
+- [ ] 单选选项人数之和等于 answeredCount；多选按选项人数统计且单项不超过 answeredCount；零计数选项仍按发布版本顺序返回。
+- [ ] 数字题计算 count、average、minimum、maximum；无数据时 count=0，其余三个值为 null，不用 0 代表无数据。
+- [ ] 实现只读文本题的 `/responses?questionId=...` 分页；严格校验 questionId、limit 1–50、未知参数和游标绑定。
+- [ ] 文本分页先以版本、`answers.questionId` 和游标范围 `$match`，沿现有时间索引排序、limit+1，最后用 `$filter + $arrayElemAt` 投影；不得先展开整份 answers。
+- [ ] 实名文本页用一次 `$in` 批量读取用户，禁止 N+1；匿名项只返回正文和 UTC 日期。
+- [ ] 为匿名文本分页实现 AES-256-GCM 不透明游标；密钥从 JWT_SECRET 与专用标签派生，随机 12 字节 IV，认证标签防篡改，明文绑定问卷、版本、题目、时间和 ID。
+- [ ] 对所有创建者响应递归扫描内部身份键；匿名响应额外禁止 respondentId、submittedAt 和 id，并测试游标不含明文时间或 ObjectId。
+- [ ] 把 `answered <= reached <= submissions`、单选总和、多选上限、数字 count 写成测试预言；生产发现损坏时只输出汇总日志。
+- [ ] 通过测试注入点在两条统计管道之间插入回答，证明当前请求仍使用同一快照并保持全部不变量。
+- [ ] 实现版本统计前端：手工刷新、题目卡、选择比例、数字摘要、文本分页、UTC 标签、`white-space: pre-wrap` 和纯文本渲染。
+- [ ] 用小型固定数据手算并核对全部指标。
+- [ ] 用固定随机种子向受保护测试库直接生成 50,000 份性能回答；保存生成/清理脚本、种子、参数和环境保护。
+- [ ] 在快照事务外对相同参数和同一批管道运行 `explain("executionStats")`，保存关键输出并证明使用预期索引。
 - [ ] 逐阶段说明统计聚合管道中的 `$match`、路径展开、分组、投影和分页等步骤及其输入输出。
 - [ ] 记录 `winningPlan`、使用的索引、`totalKeysExamined` 与 `totalDocsExamined`，解释无法使用索引的阶段。
+- [ ] 对 50,000 份性能数据记录耗时，并说明文本题低回答率会增加 `totalDocsExamined`；解释 `$facet` 的 100 MB、不可落盘和 16 MiB 最终文档限制。
 - [ ] 在 `docs/API.md` 追加统计和回答分页接口及错误码。
 - [ ] 人工检查匿名信息没有通过网络接口泄露。
 - [ ] 记录本里程碑 AI 使用和人工修改。

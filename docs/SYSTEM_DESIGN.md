@@ -266,6 +266,10 @@ survey_version
 
 - `reachedCount`：经过该题的人数。
 - `answeredCount`：实际提交有效答案的人数。
+- `notReachedCount`：未到达、被跳转跳过的人数。
+- `unansweredReachedCount`：到达题目但没有作答的人数。
+
+统计只开放给已发布版本，在只读快照事务内执行多条职责单一且带超时的聚合管道；单选、多选和数字结果严格按 `surveyVersionId` 隔离。文本正文通过 `/responses?questionId=...` 分页，只允许文本题。匿名页只返回 UTC 日期，分页游标用 AES-256-GCM 隐藏精确时间和 ObjectId；详细约定见 `STATISTICS_DESIGN.md`。
 
 前端修改早期答案后必须重算路径，并清除新路径之外的旧答案。后端独立重算，不能直接相信前端结果。
 
@@ -376,10 +380,10 @@ v1 保留历史回答与统计
 
 ### 统计
 
-| 方法 | 路径                                                    | 作用         |
-| ---- | ------------------------------------------------------- | ------------ |
-| GET  | `/api/surveys/:surveyId/versions/:versionId/statistics` | 版本统计     |
-| GET  | `/api/surveys/:surveyId/versions/:versionId/responses`  | 分页查看回答 |
+| 方法 | 路径                                                                  | 作用               |
+| ---- | --------------------------------------------------------------------- | ------------------ |
+| GET  | `/api/surveys/:surveyId/versions/:versionId/statistics`               | 版本统计           |
+| GET  | `/api/surveys/:surveyId/versions/:versionId/responses?questionId=...` | 分页查看文本题回答 |
 
 ### 问卷与版本错误码
 
@@ -405,8 +409,10 @@ v1 保留历史回答与统计
 |  409 | `SESSION_EXPIRED`              | 填写会话自身已到期                              |
 |  409 | `SESSION_LIMIT_REACHED`        | 同一账号在同一问卷已有五个活动会话              |
 |  409 | `ALREADY_SUBMITTED`            | 禁止重复时已向当前版本提交                      |
+|  409 | `VERSION_NOT_PUBLISHED`        | 统计目标版本不是已发布版本                      |
+|  503 | `STATISTICS_UNAVAILABLE`       | 统计超时或暂时无法取得一致快照                  |
 
-所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`；发布、历史版本、放弃草稿和有效状态见 `VERSION_LIFECYCLE_DESIGN.md`。
+所有带请求体的接口只接受 `application/json`，无请求体的退出接口除外。字段、事务、分页、限流和种子保护的完整里程碑 3 约定见 `SURVEY_DRAFT_DESIGN.md`；题目结构、校验、接口语义和并发约定见 `QUESTION_DESIGN.md`；跳转、路径和发布检查见 `JUMP_DESIGN.md`；发布、历史版本、放弃草稿和有效状态见 `VERSION_LIFECYCLE_DESIGN.md`；统计、文本分页与匿名游标见 `STATISTICS_DESIGN.md`。
 
 ## 前端范围
 

@@ -26,7 +26,8 @@ apps/
 packages/
 └── survey-logic/      前后端共享的答案校验、跳转路径和发布检查逻辑
 docker/                MongoDB 副本集初始化脚本
-docs/                  已确认的需求和系统设计
+docs/                  已确认的需求、系统设计和 API 文档
+docs/experiments/      查询执行计划、性能数据参数与实验结果
 TODO.md                分阶段开发清单
 docker-compose.yml     MongoDB 8.0.34 单节点副本集
 ```
@@ -202,6 +203,7 @@ MongoDB 已连接时：
 - [版本发布与生命周期设计](docs/VERSION_LIFECYCLE_DESIGN.md)
 - [填写会话与逐题填写设计](docs/FILL_SESSION_DESIGN.md)
 - [正式回答提交设计](docs/RESPONSE_SUBMISSION_DESIGN.md)
+- [按版本统计与文本回答分页设计](docs/STATISTICS_DESIGN.md)
 - [里程碑 6 版本历史查询执行计划](docs/experiments/MILESTONE6_EXPLAIN.md)
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
