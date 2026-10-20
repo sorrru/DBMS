@@ -446,6 +446,8 @@ P5 新增受保护的本地问卷列表基准脚本，在专用 `_benchmark` 数
 
 项目负责人确认 P1–P5 检查点通过后，AI 扩充受保护种子：保留 `seed_demo` 创建者，增加 `seed_guest_a` 与 `seed_guest_b` 两名填写者；匿名已发布 v1 固定三份回答，覆盖默认和跳转路径、零计数选项、到达未答与数字统计；实名问卷由两个账号各提交一份。AI 在本地 Docker 数据库真实执行两次 seed，均得到 3 用户、3 问卷、4 版本、6 会话、5 回答；随后第一次 clean 删除相同数量，第二次 clean 全为 0。最后用项目现有 `.env` 恢复演示数据供人工验收，手算表和幂等证据保存于 `docs/experiments/MILESTONE10_SEED_VERIFICATION.md`。
 
+种子检查通过后，AI 按确认顺序执行完整自动回归：Node 24.22.0、npm 11.19.1、Docker 29.8.2、Compose 5.6.0、MongoDB 8.0.34。`npm ci` 从锁文件安装 215 个包；类型检查通过；共享逻辑 11、API 144、Web 22，共 27 个文件 177 项测试一次通过；生产构建和 Prettier 检查通过，node_modules 与三个 dist 均正确被忽略。本轮没有失败或修复，AI 未启动网站。完整命令、预期、实际与尚待人工的四组验收保存于 `docs/experiments/MILESTONE10_TEST_REPORT.md`。
+
 ## 2026-10-16 TODO 第一轮人工审阅
 
 ### 人工审阅意见
