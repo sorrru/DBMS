@@ -485,7 +485,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 }
 ```
 
-创建会话不会刷新两小时登录 JWT。`survey_fill` Cookie 固定为 HttpOnly、SameSite=Lax、Path `/api/public/sessions/{sessionId}`，Max-Age 为会话时长，Secure 仅在生产开启。创建接口先执行账号+IP 与 IP 总量限流，再按公开问卷不存在、手工关闭、当前版本截止、禁止重复时已经提交、五个活动会话上限的顺序判定。里程碑 7 尚无 responses 集合，因此 `ALREADY_SUBMITTED` 只预留服务边界，里程碑 8 接入真实查询。
+创建会话不会刷新两小时登录 JWT。`survey_fill` Cookie 固定为 HttpOnly、SameSite=Lax、Path `/api/public/sessions/{sessionId}`，Max-Age 为会话时长，Secure 仅在生产开启。创建接口先执行账号+IP 与 IP 总量限流，再按公开问卷不存在、手工关闭、当前版本截止、禁止重复时已经提交、五个活动会话上限的顺序判定。禁止重复时通过 responses 的版本与 dedupKey 查询，在填写开始前返回 `ALREADY_SUBMITTED`；最终并发正确性仍由条件唯一索引保证。
 
 ### `GET /api/public/sessions/:sessionId`
 
@@ -493,7 +493,7 @@ revision 过期时返回 `DRAFT_CONFLICT`，并包含当前值：
 
 填写令牌永不出现在路径或 JSON 中。
 
-### `POST /api/public/sessions/:sessionId/submit`（里程碑 8 待实现）
+### `POST /api/public/sessions/:sessionId/submit`
 
 同时需要登录 Cookie 和动态 Path 的填写 Cookie。请求只允许：
 
@@ -594,4 +594,4 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 
 ## 当前实现边界
 
-登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期和正式提交前的公开填写会话均已实现并验收。正式回答提交已完成设计、尚未编码；统计尚未开始。
+登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期、公开填写会话和正式回答提交均已实现并验收；按版本统计尚未开始。
