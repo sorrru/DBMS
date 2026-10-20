@@ -209,6 +209,8 @@ MongoDB 已连接时：
 - [填写会话与逐题填写设计](docs/FILL_SESSION_DESIGN.md)
 - [正式回答提交设计](docs/RESPONSE_SUBMISSION_DESIGN.md)
 - [按版本统计与文本回答分页设计](docs/STATISTICS_DESIGN.md)
+- [里程碑 10 系统测试计划](docs/MILESTONE10_TEST_PLAN.md)
+- [需求—测试追踪矩阵](docs/TEST_TRACEABILITY.md)
 - [里程碑 6 版本历史查询执行计划](docs/experiments/MILESTONE6_EXPLAIN.md)
 - [里程碑 9 统计聚合执行计划](docs/experiments/MILESTONE9_STATISTICS_EXPLAIN.md)
 - [API 说明](docs/API.md)
