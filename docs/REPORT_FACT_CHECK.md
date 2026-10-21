@@ -17,21 +17,21 @@
 
 ## 2. 当前环境快照
 
-| 项目           | 当前核对值                                  | 事实来源                                   |
-| -------------- | ------------------------------------------- | ------------------------------------------ |
-| Git 基线       | `3e6776c`，另有尚未提交的里程碑 11 文档修改 | `git rev-parse --short HEAD`、`git status` |
-| Node.js        | 24.22.0                                     | `node -v`、`.nvmrc`、根 `package.json`     |
-| npm            | 11.19.1                                     | `npm -v`                                   |
-| TypeScript     | 5.9.3                                       | `package-lock.json`                        |
-| Vue            | 3.5.44                                      | `package-lock.json`                        |
-| Vite           | 8.3.4                                       | `package-lock.json`                        |
-| Express        | 5.3.0                                       | `package-lock.json`                        |
-| Mongoose       | 9.11.2                                      | `package-lock.json`                        |
-| Vitest         | 5.0.5                                       | `package-lock.json`                        |
-| Supertest      | 7.3.1                                       | `package-lock.json`                        |
-| MongoDB        | 8.0.34                                      | `docker-compose.yml` 与运行容器            |
-| Docker Compose | 5.6.0                                       | 运行容器标签；不是项目锁定依赖             |
-| 最新完整测试   | 共享逻辑 11、API 147、Web 26，共 184 项     | 2026-10-21 报告编写阶段再次执行 `npm test` |
+| 项目           | 当前核对值                              | 事实来源                                   |
+| -------------- | --------------------------------------- | ------------------------------------------ |
+| Git 基线       | 里程碑 11 文档提交 `825172b`            | `git rev-parse --short HEAD`、`git status` |
+| Node.js        | 24.22.0                                 | `node -v`、`.nvmrc`、根 `package.json`     |
+| npm            | 11.19.1                                 | `npm -v`                                   |
+| TypeScript     | 5.9.3                                   | `package-lock.json`                        |
+| Vue            | 3.5.44                                  | `package-lock.json`                        |
+| Vite           | 8.3.4                                   | `package-lock.json`                        |
+| Express        | 5.3.0                                   | `package-lock.json`                        |
+| Mongoose       | 9.11.2                                  | `package-lock.json`                        |
+| Vitest         | 5.0.5                                   | `package-lock.json`                        |
+| Supertest      | 7.3.1                                   | `package-lock.json`                        |
+| MongoDB        | 8.0.34                                  | `docker-compose.yml` 与运行容器            |
+| Docker Compose | 5.6.0                                   | 运行容器标签；不是项目锁定依赖             |
+| 最新完整测试   | 共享逻辑 11、API 147、Web 26，共 184 项 | 2026-10-21 报告编写阶段再次执行 `npm test` |
 
 ## 3. 五个集合的字段核对
 

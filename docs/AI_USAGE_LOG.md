@@ -546,3 +546,5 @@ API 正文按五组共 29 条实际路由说明职责，不复制完整字段手
 项目负责人确认 Markdown 报告并要求进入下一步，同时说明 DOCX 可以最后再制作。AI 开始里程碑 12 的非破坏性本地预检：Git 历史能够区分需求设计、实现、验收和三项人工修复；工作区只有最终文档改动；`.env`、node_modules、三个 dist 目录和 `.DS_Store` 均被实际忽略；Git 只跟踪 `.env.example` 等安全模板。敏感模式扫描仅命中模板中的无效占位文本，没有发现已提交密钥、令牌或带密码的 MongoDB URI。仓库当前没有配置 remote，因此没有提交或推送。
 
 Docker MongoDB 8.0.34 容器为 healthy 后，AI 从锁文件重新执行 `npm ci`，再运行 typecheck、完整测试、生产构建和格式检查。共享逻辑 1 个文件 11 项、API 20 个文件 147 项、Web 7 个文件 26 项，共 28 个文件 184 项全部通过；本次耗时分别为 216 ms、14.36 s 和 1.14 s。生产构建和 Prettier 检查通过，里程碑 12 的本地预检项据此更新；可读提交、GitHub remote、推送和全新克隆验证仍待后续步骤。
+
+项目负责人已明确确认 Markdown 报告。AI 将 README、TODO、最终设计同步、实验修订、AI 日志、项目报告和事实核对表整理为本地提交 `825172b`（`docs: complete milestone 11 project report`）。该提交只包含 9 个文档文件，没有业务代码、环境文件或构建产物；GitHub remote 仍未配置，因此尚未推送。
