@@ -60,6 +60,16 @@ export interface FillRoute {
   sessionId?: string;
 }
 
+export interface FillAccountExitRequest {
+  returnPath: string;
+  confirmation?: string;
+}
+
+export interface FillStartControl {
+  disabled: boolean;
+  label: string;
+}
+
 export interface FillDraft {
   answers: Record<string, string | string[] | number>;
   currentQuestionId: string;
@@ -77,6 +87,40 @@ export function parseFillRoute(pathname: string): FillRoute | undefined {
 
 export const safeFillReturnPath = (path: string): string | undefined =>
   fillPath.test(path) ? path : undefined;
+
+export function fillAccountExitRequest(
+  route: FillRoute,
+  hasActiveSession: boolean,
+): FillAccountExitRequest {
+  const publicPath = `/fill/${route.publicId}`;
+  if (!hasActiveSession) return { returnPath: publicPath };
+  return {
+    returnPath: route.sessionId
+      ? `${publicPath}/session/${route.sessionId}`
+      : publicPath,
+    confirmation:
+      "未提交内容保存在本浏览器中。重新登录同一账号后可以继续；切换账号不能继续当前会话。确定退出登录吗？",
+  };
+}
+
+export function fillStartControl(options: {
+  status: PublicSurvey["status"];
+  starting: boolean;
+  authenticated: boolean;
+  alreadySubmitted: boolean;
+}): FillStartControl {
+  if (options.status === "closed")
+    return { disabled: true, label: "问卷已关闭" };
+  if (options.status === "expired")
+    return { disabled: true, label: "问卷已截止" };
+  if (options.alreadySubmitted)
+    return { disabled: true, label: "该账号已提交" };
+  if (options.starting) return { disabled: true, label: "正在开始…" };
+  return {
+    disabled: false,
+    label: options.authenticated ? "开始填写" : "登录后开始填写",
+  };
+}
 
 export const fetchPublicSurvey = (publicId: string) =>
   apiRequest<{ survey: PublicSurvey }>(
@@ -119,6 +163,16 @@ export const fillDraftKey = (sessionId: string, versionId: string) =>
 
 export function clearFillDraft(sessionId: string, versionId: string): void {
   sessionStorage.removeItem(fillDraftKey(sessionId, versionId));
+}
+
+export function clearFillDraftsForSession(sessionId: string): void {
+  const prefix = `fill-draft:${sessionId}:`;
+  const keys: string[] = [];
+  for (let index = 0; index < sessionStorage.length; index += 1) {
+    const key = sessionStorage.key(index);
+    if (key?.startsWith(prefix)) keys.push(key);
+  }
+  keys.forEach((key) => sessionStorage.removeItem(key));
 }
 
 export function saveFillDraft(

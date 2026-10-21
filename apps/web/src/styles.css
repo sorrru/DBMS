@@ -660,6 +660,24 @@ select {
   margin-bottom: 0;
 }
 
+.fill-header-actions,
+.fill-account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fill-header-actions {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.fill-account {
+  color: #526174;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
 .fill-timer {
   border-radius: 999px;
   padding: 0.45rem 0.75rem;
@@ -1065,6 +1083,17 @@ input:focus {
 
   .fill-header {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fill-header-actions,
+  .fill-account {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .fill-account {
+    flex-wrap: wrap;
   }
 }
 .statistics-shell {

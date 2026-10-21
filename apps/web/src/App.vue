@@ -23,7 +23,12 @@ import PublishedVersionView from "./PublishedVersionView.vue";
 import QuestionEditor from "./QuestionEditor.vue";
 import StatisticsView from "./StatisticsView.vue";
 import { fetchHealth, type HealthResponse } from "./health";
-import { parseFillRoute, safeFillReturnPath, type FillRoute } from "./fill";
+import {
+  parseFillRoute,
+  safeFillReturnPath,
+  type FillAccountExitRequest,
+  type FillRoute,
+} from "./fill";
 import {
   changedDraftFields,
   clearSettingsDraft,
@@ -605,6 +610,21 @@ async function signOut(): Promise<void> {
   mode.value = "login";
   resetFeedbackAfterSignOut(message, publishError);
 }
+
+async function signOutFromFill(request: FillAccountExitRequest): Promise<void> {
+  if (request.confirmation && !window.confirm(request.confirmation)) return;
+  try {
+    await logout();
+  } catch (error) {
+    showError(error);
+    return;
+  }
+  user.value = undefined;
+  surveys.value = [];
+  page.value = "list";
+  resetFeedbackAfterSignOut(message, publishError);
+  requireFillLogin(request.returnPath);
+}
 function switchMode(next: Mode): void {
   mode.value = next;
   password.value = "";
@@ -673,6 +693,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
       :user="user"
       @require-login="requireFillLogin"
       @route-changed="updateFillRoute"
+      @sign-out="signOutFromFill"
     />
     <section v-else-if="!user" class="auth-panel" aria-live="polite">
       <div class="mode-tabs">

@@ -16,8 +16,11 @@ import {
 import { ApiClientError, type PublicUser } from "./auth";
 import {
   clearFillDraft,
+  clearFillDraftsForSession,
   createFillSession,
   fetchPublicSurvey,
+  fillAccountExitRequest,
+  fillStartControl,
   restoreFillDraft,
   resumeFillSession,
   saveFillDraft,
@@ -33,6 +36,7 @@ const props = defineProps<{ route: FillRoute; user?: PublicUser }>();
 const emit = defineEmits<{
   requireLogin: [path: string];
   routeChanged: [route: FillRoute];
+  signOut: [request: ReturnType<typeof fillAccountExitRequest>];
 }>();
 
 const loading = ref(true);
@@ -48,6 +52,7 @@ const visited = ref<string[]>([]);
 const reviewing = ref(false);
 const remainingSeconds = ref(0);
 const storageWarning = ref("");
+const alreadySubmitted = ref(false);
 const answers = reactive<Record<string, string | string[] | number>>({});
 const numberInputs = reactive<Record<string, string>>({});
 const serverIssues = reactive<Record<string, SubmissionIssue>>({});
@@ -66,6 +71,14 @@ const countdown = computed(() => {
   const seconds = remainingSeconds.value % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 });
+const startControl = computed(() =>
+  fillStartControl({
+    status: summary.value?.status ?? "closed",
+    starting: starting.value,
+    authenticated: Boolean(props.user),
+    alreadySubmitted: alreadySubmitted.value,
+  }),
+);
 
 function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : "操作失败，请稍后重试";
@@ -82,6 +95,7 @@ function handleSessionError(cause: unknown): void {
       emit("requireLogin", window.location.pathname);
       return;
     }
+    if (cause.code === "ALREADY_SUBMITTED") alreadySubmitted.value = true;
     if (
       [
         "SESSION_NOT_FOUND",
@@ -89,10 +103,18 @@ function handleSessionError(cause: unknown): void {
         "SURVEY_EXPIRED",
         "SURVEY_CLOSED",
       ].includes(cause.code)
-    )
+    ) {
       removeDraft();
+      if (props.route.sessionId)
+        clearFillDraftsForSession(props.route.sessionId);
+    }
   }
   error.value = messageOf(cause);
+}
+
+function requestSignOut(): void {
+  if (active.value) persistDraft();
+  emit("signOut", fillAccountExitRequest(props.route, Boolean(active.value)));
 }
 
 function beginCountdown(data: FillSessionResponse): void {
@@ -163,6 +185,7 @@ async function start(): Promise<void> {
   }
   starting.value = true;
   error.value = "";
+  alreadySubmitted.value = false;
   try {
     const data = await createFillSession(props.route.publicId);
     installSession(data);
@@ -366,7 +389,21 @@ onBeforeUnmount(() => {
           <p class="eyebrow">公开问卷</p>
           <h2>{{ active?.version.title ?? summary.title }}</h2>
         </div>
-        <span v-if="active" class="fill-timer">剩余 {{ countdown }}</span>
+        <div class="fill-header-actions">
+          <span v-if="active" class="fill-timer">剩余 {{ countdown }}</span>
+          <div v-if="user" class="fill-account">
+            <span
+              >当前账号：<strong>{{ user.username }}</strong></span
+            >
+            <button
+              class="secondary compact"
+              type="button"
+              @click="requestSignOut"
+            >
+              退出登录
+            </button>
+          </div>
+        </div>
       </header>
       <p v-if="!active" class="fill-description">{{ summary.description }}</p>
       <p class="identity-notice">
@@ -388,20 +425,18 @@ onBeforeUnmount(() => {
         <button
           class="primary"
           type="button"
-          :disabled="starting || summary.status !== 'published'"
+          :disabled="startControl.disabled"
           @click="start"
         >
-          {{
-            summary.status === "closed"
-              ? "问卷已关闭"
-              : summary.status === "expired"
-                ? "问卷已截止"
-                : starting
-                  ? "正在开始…"
-                  : user
-                    ? "开始填写"
-                    : "登录后开始填写"
-          }}
+          {{ startControl.label }}
+        </button>
+        <button
+          v-if="alreadySubmitted && user"
+          class="secondary"
+          type="button"
+          @click="requestSignOut"
+        >
+          切换账号填写
         </button>
       </div>
 

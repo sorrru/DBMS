@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicFillVersion } from "./fill";
 import {
+  fillAccountExitRequest,
+  clearFillDraftsForSession,
   fillDraftKey,
+  fillStartControl,
   parseFillRoute,
   restoreFillDraft,
   safeFillReturnPath,
@@ -36,6 +39,10 @@ beforeEach(() => {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
+    get length() {
+      return values.size;
+    },
+    key: (index: number) => [...values.keys()][index] ?? null,
   });
 });
 
@@ -48,6 +55,38 @@ describe("fill routes", () => {
     });
     expect(safeFillReturnPath("https://evil.example/fill/x")).toBeUndefined();
     expect(safeFillReturnPath("//evil.example/fill/x")).toBeUndefined();
+  });
+
+  it("keeps an active session return path and warns before signing out", () => {
+    expect(
+      fillAccountExitRequest(
+        { publicId: "public_1", sessionId: "abc123" },
+        true,
+      ),
+    ).toEqual({
+      returnPath: "/fill/public_1/session/abc123",
+      confirmation:
+        "未提交内容保存在本浏览器中。重新登录同一账号后可以继续；切换账号不能继续当前会话。确定退出登录吗？",
+    });
+    expect(
+      fillAccountExitRequest(
+        { publicId: "public_1", sessionId: "old-session" },
+        false,
+      ),
+    ).toEqual({ returnPath: "/fill/public_1" });
+  });
+});
+
+describe("fill start control", () => {
+  it("disables a version already submitted by the current account", () => {
+    expect(
+      fillStartControl({
+        status: "published",
+        starting: false,
+        authenticated: true,
+        alreadySubmitted: true,
+      }),
+    ).toEqual({ disabled: true, label: "该账号已提交" });
   });
 });
 
@@ -79,6 +118,18 @@ describe("untrusted local fill drafts", () => {
       "answer",
     );
     expect(restoreFillDraft("s2", version)).toBeUndefined();
+  });
+
+  it("clears every local draft belonging to a rejected session", () => {
+    sessionStorage.setItem("fill-draft:s1:v1", "first");
+    sessionStorage.setItem("fill-draft:s1:v2", "second");
+    sessionStorage.setItem("fill-draft:s2:v1", "keep");
+
+    clearFillDraftsForSession("s1");
+
+    expect(sessionStorage.getItem("fill-draft:s1:v1")).toBeNull();
+    expect(sessionStorage.getItem("fill-draft:s1:v2")).toBeNull();
+    expect(sessionStorage.getItem("fill-draft:s2:v1")).toBe("keep");
   });
 });
 
