@@ -15,6 +15,7 @@ import {
   register,
   type PublicUser,
 } from "./auth";
+import { resetFeedbackAfterSignOut } from "./auth-view-state";
 import DeadlineInput from "./DeadlineInput.vue";
 import FillPage from "./FillPage.vue";
 import JumpRuleEditor from "./JumpRuleEditor.vue";
@@ -602,6 +603,7 @@ async function signOut(): Promise<void> {
   surveys.value = [];
   page.value = "list";
   mode.value = "login";
+  resetFeedbackAfterSignOut(message, publishError);
 }
 function switchMode(next: Mode): void {
   mode.value = next;
