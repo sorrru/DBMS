@@ -5,6 +5,8 @@
 本实验验证生产统计服务实际使用的五条聚合管道和文本分页管道。生成脚本为 `apps/api/src/scripts/statistics-benchmark.ts`，它直接导入生产代码中的管道构造器，避免实验管道与实现偏离。
 
 - MongoDB：8.0.34，Docker 单节点副本集；
+- 主机：Apple M2 八核、16 GB 内存的 MacBook Air；
+- Docker Desktop：8 CPU、8,319,770,624 字节内存；
 - 回答数：50,000；
 - 固定随机种子：20,261,020；
 - 数据库：专用本地 `survey_statistics_benchmark`；
@@ -19,6 +21,13 @@ STATISTICS_BENCHMARK_URI='mongodb://127.0.0.1:27017/survey_statistics_benchmark?
 STATISTICS_BENCHMARK_COUNT=50000 \
 STATISTICS_BENCHMARK_SEED=20261020 \
 npm run statistics:benchmark --workspace @survey/api
+```
+
+三次测量完成后清理专用基准数据：
+
+```bash
+STATISTICS_BENCHMARK_URI='mongodb://127.0.0.1:27017/survey_statistics_benchmark?replicaSet=rs0&directConnection=true' \
+npm run statistics:benchmark:clean --workspace @survey/api
 ```
 
 ## 小型手算数据
@@ -41,14 +50,16 @@ npm run statistics:benchmark --workspace @survey/api
 
 ## 关键结果
 
-| 管道       | winningPlan / 索引                                       | keys examined | docs examined | execution ms |
-| ---------- | -------------------------------------------------------- | ------------: | ------------: | -----------: |
-| 总提交数   | `COUNT_SCAN` / `surveyVersionId_1_submittedAt_-1__id_-1` |        50,000 |             0 |           12 |
-| 到达数     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |          117 |
-| 回答数     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |          169 |
-| 选择题     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |          344 |
-| 数字题     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |          224 |
-| 文本第一页 | `IXSCAN → FETCH → LIMIT` / 同一索引                      |            33 |            33 |            0 |
+原始记录只有一次执行结果。为避免把单次抖动写成固定性能，2026-10-21 使用相同脚本、参数和固定种子重新独立运行三次。每次脚本都先删除自身旧数据并重新插入 50,000 份回答。下表的时间单位为 `executionTimeMillis`。
+
+| 管道       | winningPlan / 索引                                       | keys examined | docs examined | 第 1 次 | 第 2 次 | 第 3 次 | 中位数 | 范围       |
+| ---------- | -------------------------------------------------------- | ------------: | ------------: | ------: | ------: | ------: | -----: | ---------- |
+| 总提交数   | `COUNT_SCAN` / `surveyVersionId_1_submittedAt_-1__id_-1` |        50,000 |             0 |      13 |      17 |      13 |     13 | 13–17 ms   |
+| 到达数     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |     138 |     179 |     142 |    142 | 138–179 ms |
+| 回答数     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |     200 |     252 |     202 |    202 | 200–252 ms |
+| 选择题     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |     365 |     403 |     398 |    398 | 365–403 ms |
+| 数字题     | `IXSCAN → FETCH → PROJECTION` / 同一索引                 |        50,000 |        50,000 |     227 |     237 |     281 |    237 | 227–281 ms |
+| 文本第一页 | `IXSCAN → FETCH → LIMIT` / 同一索引                      |            33 |            33 |       0 |       0 |       0 |      0 | 0–0 ms     |
 
 统计汇总必须读取该版本的全部正式回答内容，所以除总数的 `COUNT_SCAN` 外，路径和答案聚合检查 50,000 个键并读取 50,000 份文档是预期行为；索引的作用是先精确隔离版本，而不是消除版本内的全量聚合。选择题还会把 100,000 个选择题答案展开成 125,010 个选项值，因此是本次最重的管道。
 

@@ -1,6 +1,6 @@
 # 里程碑 9：按版本统计与文本回答分页设计
 
-本文记录里程碑 9 开工前经人工审阅的统计方案。统计只读取已发布版本的正式回答，严格以 `surveyVersionId` 隔离；草稿返回 `VERSION_NOT_PUBLISHED`。范围包括聚合指标、只读快照、匿名文本分页、不透明加密游标、超时与限流、执行计划和两套实验数据。本文件确认前不开始编码。
+本文记录里程碑 9 开工前经人工审阅的统计方案。统计只读取已发布版本的正式回答，严格以 `surveyVersionId` 隔离；草稿返回 `VERSION_NOT_PUBLISHED`。范围包括聚合指标、只读快照、匿名文本分页、不透明加密游标、超时与限流、执行计划和两套实验数据。方案确认后已经实现并验收；里程碑 10 又补充了实名提交记录，使没有文本回答的实名版本也能列出全部提交账号。本段保留原始决策背景，不把后续实现倒写成开工前事实。
 
 ## 1. 接口与判定顺序
 
@@ -23,7 +23,7 @@ GET /api/surveys/:surveyId/versions/:versionId/submissions?limit=20&cursor=...
 7. 用户统计限流；
 8. 执行有 10 秒上限的统计或分页查询。
 
-查询超时、快照事务无法在限制内完成或数据库暂时无法提供统计时，返回 `503 STATISTICS_UNAVAILABLE`，不暴露驱动错误。两个接口均设置 `Cache-Control: no-store`。越权统一 404。
+查询超时、快照事务无法在限制内完成或数据库暂时无法提供统计时，返回 `503 STATISTICS_UNAVAILABLE`，不暴露驱动错误。三个接口均设置 `Cache-Control: no-store`。越权统一 404。
 
 ## 2. 指标定义
 
@@ -163,18 +163,19 @@ answeredCount <= reachedCount <= submissionCount
 1. 小型固定数据：覆盖跳转、未回答、全部题型、匿名和实名，可逐项手算并写入报告对照表；
 2. 性能数据：用固定随机种子直接向受保护的本地测试库写入 50,000 份回答，用于 explain 和耗时比较。保存生成脚本、随机种子、版本、参数与清理命令；脚本复用生产环境拒绝、本地主机白名单和测试库名保护。
 
-`explain("executionStats")` 不能在事务中运行，因此 `docs/experiments/MILESTONE9_EXPLAIN.md` 使用相同参数和同一批管道在事务外单独执行。记录 winningPlan、索引、totalKeysExamined、totalDocsExamined、executionTimeMillis、是否阻塞排序，以及 `$unwind`、`$group` 等索引后阶段为何不能继续使用索引。文本分页另记录低回答率时扫描文档数增加的结果。
+`explain("executionStats")` 不能在事务中运行，因此 `docs/experiments/MILESTONE9_STATISTICS_EXPLAIN.md` 使用相同参数和同一批管道在事务外单独执行。记录 winningPlan、索引、totalKeysExamined、totalDocsExamined、executionTimeMillis、是否阻塞排序，以及 `$unwind`、`$group` 等索引后阶段为何不能继续使用索引。文本分页另记录低回答率时扫描文档数增加的结果。
 
 MongoDB 限制依据：[官方 `$facet` 文档](https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet/)和[官方 aggregate command 文档](https://www.mongodb.com/docs/manual/reference/command/aggregate/)；最终报告引用这两个一手来源，不把测试日志当成规范依据。
 
 ## 11. 测试预言
 
 - 两个版本完全隔离，草稿返回 409，越权统一 404；
-- 两个接口均 `no-store`，未知参数、非法 questionId、limit 0/51/非整数均 400；
+- 三个接口均 `no-store`；未知参数、非法 questionId、limit 0/51/非整数均 400；
 - `answered <= reached <= submissions`；单选总和等于 answered，多选单项不超过 answered，数字 count 等于 answered；
 - 跳转、非必答、零回答、零计数选项、负数和小数均正确；数字无数据三个统计值为 null；
 - 快照注入测试仍满足全部不变量；
 - 匿名响应和加密游标通过递归泄露扫描，实名用户只批量查询一次；
 - 游标倒序、同时间 `_id` 次序、篡改和跨范围复用均正确；
 - 每条管道传 session 和 maxTimeMS，超时稳定返回 503；限流覆盖 Retry-After 与窗口恢复；
-- 前端覆盖百分比、空状态、UTC 标签、分页、换行和纯文本渲染。
+- 实名提交记录逐次列出所有提交，不依赖文本题作答；匿名版本拒绝该接口；
+- 前端覆盖百分比、空状态、UTC 标签、分页、换行、实名提交记录和纯文本渲染。
