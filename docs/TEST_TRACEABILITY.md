@@ -78,20 +78,20 @@
 
 ## 统计、实验与前端
 
-| ID          | 需求行为                                                                 | 自动或实验依据                                                                                        | 人工依据                                                          | 状态   |
-| ----------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------ |
-| STATS-01    | 统计只开放给创建者和已发布版本，草稿 409、越权 404、响应 no-store        | `statistics.integration.test.ts`：rejects drafts...、hand-checkable aggregates                        | 已发布统计页已人工验收                                            | 已覆盖 |
-| STATS-02    | reached/answered/notReached/unanswered、选择和数字指标可手算且满足不变量 | 同文件：hand-checkable aggregates、null number extrema                                                | `MILESTONE10_SEED_VERIFICATION.md` 给出匿名 3 份、实名 2 份手算表 | 已覆盖 |
-| STATS-03    | 五条管道在同一 snapshot 事务，期间新增回答不破坏一致性                   | 同文件：keeps all pipelines on one snapshot                                                           | `MILESTONE9_STATISTICS_EXPLAIN.md`                                | 已覆盖 |
-| STATS-04    | 文本分页沿版本时间索引，实名用户一次批量查询，匿名只显示 UTC 日期        | 同文件匿名/实名分页；`MILESTONE9_STATISTICS_EXPLAIN.md`                                               | 实名文本页已人工查看                                              | 已覆盖 |
-| STATS-05    | 匿名游标 AES-256-GCM 加密、绑定查询并拒绝篡改，不泄露时间和 ObjectId     | `statistics-cursor.test.ts`；统计集成递归泄露扫描                                                     | 无                                                                | 已覆盖 |
-| STATS-06    | 不同 surveyVersionId 的统计和文本回答绝不混合                            | `statistics.integration.test.ts`：keeps totals, options, and text responses isolated between versions | 无                                                                | 已覆盖 |
-| STATS-07    | 实名版本逐次列出全部提交账号，不依赖文本作答；匿名版本不开放身份列表     | `statistics.integration.test.ts`：lists every identified submission...、never exposes...              | 实名 v2 与匿名 v1 页面均已人工确认                                | 已覆盖 |
-| FRONTEND-01 | 已发布内容只读可见；草稿检查后可预览；导航可定位题目、跳转、发布和统计   | `PublishedVersionView.test.ts`；前端请求测试                                                          | 历次界面检查，包括半屏、按钮与统计                                | 已覆盖 |
-| FRONTEND-02 | 截止时间分栏输入、时区、错误就地展示；密码可见按钮                       | `deadline.test.ts`；界面人工检查                                                                      | 已人工验收                                                        | 已覆盖 |
-| SEED-01     | 种子覆盖多版本、四题型、分支、匿名/实名回答、关闭、到期和旧会话          | `seed.ts`；`MILESTONE10_SEED_VERIFICATION.md` 的固定数据关系与手算表                                  | 演示数据已恢复，待最终人工验收                                    | 已覆盖 |
-| SEED-02     | seed 可重复、clean 完整且幂等，并拒绝危险数据库                          | 本地 URI 保护测试；2026-10-20 实际两次 seed、两次 clean 的集合计数                                    | `MILESTONE10_SEED_VERIFICATION.md`                                | 已覆盖 |
-| BUILD-01    | 从依赖安装到共享包、API、Web 构建顺序可重复                              | `MILESTONE10_TEST_REPORT.md`：npm ci、typecheck、177 项测试、生产构建、格式与忽略规则实测             | 无                                                                | 已覆盖 |
+| ID          | 需求行为                                                                 | 自动或实验依据                                                                                        | 人工依据                                    | 状态   |
+| ----------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------ |
+| STATS-01    | 统计只开放给创建者和已发布版本，草稿 409、越权 404、响应 no-store        | `statistics.integration.test.ts`：rejects drafts...、hand-checkable aggregates                        | 已发布统计页已人工验收                      | 已覆盖 |
+| STATS-02    | reached/answered/notReached/unanswered、选择和数字指标可手算且满足不变量 | 同文件：hand-checkable aggregates、null number extrema                                                | 匿名 3 份与实名 2 份种子结果已逐项人工核算  | 已覆盖 |
+| STATS-03    | 五条管道在同一 snapshot 事务，期间新增回答不破坏一致性                   | 同文件：keeps all pipelines on one snapshot                                                           | `MILESTONE9_STATISTICS_EXPLAIN.md`          | 已覆盖 |
+| STATS-04    | 文本分页沿版本时间索引，实名用户一次批量查询，匿名只显示 UTC 日期        | 同文件匿名/实名分页；`MILESTONE9_STATISTICS_EXPLAIN.md`                                               | 实名文本页已人工查看                        | 已覆盖 |
+| STATS-05    | 匿名游标 AES-256-GCM 加密、绑定查询并拒绝篡改，不泄露时间和 ObjectId     | `statistics-cursor.test.ts`；统计集成递归泄露扫描                                                     | 无                                          | 已覆盖 |
+| STATS-06    | 不同 surveyVersionId 的统计和文本回答绝不混合                            | `statistics.integration.test.ts`：keeps totals, options, and text responses isolated between versions | 人工创建问卷 v1/v2 切换与刷新已确认严格隔离 | 已覆盖 |
+| STATS-07    | 实名版本逐次列出全部提交账号，不依赖文本作答；匿名版本不开放身份列表     | `statistics.integration.test.ts`：lists every identified submission...、never exposes...              | 实名 v2 与匿名 v1 页面均已人工确认          | 已覆盖 |
+| FRONTEND-01 | 已发布内容只读可见；草稿检查后可预览；导航可定位题目、跳转、发布和统计   | `PublishedVersionView.test.ts`；前端请求测试                                                          | 历次界面检查，包括半屏、按钮与统计          | 已覆盖 |
+| FRONTEND-02 | 截止时间分栏输入、时区、错误就地展示；密码可见按钮                       | `deadline.test.ts`；界面人工检查                                                                      | 已人工验收                                  | 已覆盖 |
+| SEED-01     | 种子覆盖多版本、四题型、分支、匿名/实名回答、关闭、到期和旧会话          | `seed.ts`；`MILESTONE10_SEED_VERIFICATION.md` 的固定数据关系与手算表                                  | 匿名、实名、关闭和到期样例已完成人工验收    | 已覆盖 |
+| SEED-02     | seed 可重复、clean 完整且幂等，并拒绝危险数据库                          | 本地 URI 保护测试；2026-10-20 实际两次 seed、两次 clean 的集合计数                                    | `MILESTONE10_SEED_VERIFICATION.md`          | 已覆盖 |
+| BUILD-01    | 从依赖安装到共享包、API、Web 构建顺序可重复                              | `MILESTONE10_TEST_REPORT.md`：npm ci、typecheck、177 项测试、生产构建、格式与忽略规则实测             | 无                                          | 已覆盖 |
 
 ## 已确认不在第一阶段实现的边界
 
