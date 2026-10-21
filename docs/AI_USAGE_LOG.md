@@ -548,3 +548,9 @@ API 正文按五组共 29 条实际路由说明职责，不复制完整字段手
 Docker MongoDB 8.0.34 容器为 healthy 后，AI 从锁文件重新执行 `npm ci`，再运行 typecheck、完整测试、生产构建和格式检查。共享逻辑 1 个文件 11 项、API 20 个文件 147 项、Web 7 个文件 26 项，共 28 个文件 184 项全部通过；本次耗时分别为 216 ms、14.36 s 和 1.14 s。生产构建和 Prettier 检查通过，里程碑 12 的本地预检项据此更新；可读提交、GitHub remote、推送和全新克隆验证仍待后续步骤。
 
 项目负责人已明确确认 Markdown 报告。AI 将 README、TODO、最终设计同步、实验修订、AI 日志、项目报告和事实核对表整理为本地提交 `825172b`（`docs: complete milestone 11 project report`）。该提交只包含 9 个文档文件，没有业务代码、环境文件或构建产物；GitHub remote 仍未配置，因此尚未推送。
+
+项目负责人先提供了拼写为 DBSM 的仓库地址，在 Git 配置获准前立即发现错误并要求停止；取消操作没有留下 remote，也没有推送。项目负责人随后提供正确仓库 `https://github.com/sorrru/DBMS.git`。HTTPS 推送因本机没有交互式凭据而失败，AI 检查到现有 SSH 密钥及 `github.com` 的 443 端口配置，使用 `ssh -T` 验证账号为 sorrru 后，把 origin 改为 `git@github.com:sorrru/DBMS.git`，成功首次推送 main。
+
+AI 从 GitHub 将提交 `d44c1fe` 克隆到 `/private/tmp` 的独立目录。首次直接运行 npm 时系统默认 Node 26.8.2，正确触发项目 `engines` 警告；该结果不计为通过。随后显式使用 `.nvmrc` 对应的 Node 24.22.0 和 npm 11.19.1，重新从锁文件安装 215 个包。为验证空卷初始化，AI 暂停原目录 MongoDB 但保留原数据卷，在克隆目录创建独立 Compose 项目、网络和数据卷；MongoDB 8.0.34 变为 healthy，副本集初始化容器以 0 退出。
+
+全新克隆的 typecheck、184 项完整测试、生产构建和格式检查全部通过；测试耗时为共享逻辑 210 ms、API 12.75 s、Web 801 ms。种子脚本连续两次都生成 users 3、surveys 3、versions 4、sessions 6、responses 5；第一次清理删除相同数量，第二次清理五类计数均为 0，证明重复生成和清理幂等。AI 随后删除仅属于临时 Compose 项目的容器、网络和数据卷，并把原目录 MongoDB 恢复为 healthy。最终交付记录不包含临时 `.env` 的测试密钥或种子密码。

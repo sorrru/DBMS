@@ -19,7 +19,7 @@
 
 | 项目           | 当前核对值                              | 事实来源                                   |
 | -------------- | --------------------------------------- | ------------------------------------------ |
-| Git 基线       | 里程碑 11 文档提交 `825172b`            | `git rev-parse --short HEAD`、`git status` |
+| Git 基线       | GitHub 全新克隆验证基线 `d44c1fe`       | `git rev-parse --short HEAD`、`git status` |
 | Node.js        | 24.22.0                                 | `node -v`、`.nvmrc`、根 `package.json`     |
 | npm            | 11.19.1                                 | `npm -v`                                   |
 | TypeScript     | 5.9.3                                   | `package-lock.json`                        |
@@ -180,5 +180,5 @@ npm run --silent statistics:benchmark:clean --workspace @survey/api
 - [x] 更新测试文件数和断言总数；
 - [x] 再次比较 Mongoose `schema.indexes()` 与全新数据库 `listIndexes()`；
 - [x] 核对 API 路由和错误码；
-- [ ] 核对 Git 提交哈希、工作区状态和最终仓库地址；
-- [ ] 扫描报告、日志和截图，确认没有密钥、Cookie、令牌或真实密码。
+- [x] 核对 Git 提交哈希、工作区状态和最终仓库地址；
+- [x] 扫描报告、日志和仓库文件，确认没有密钥、Cookie、令牌或真实密码。
