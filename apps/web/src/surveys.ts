@@ -118,6 +118,7 @@ export interface VersionStatistics {
   versionId: string;
   versionNumber: number;
   title: string;
+  identityMode: "anonymous" | "identified";
   submissionCount: number;
   generatedAt: string;
   questions: QuestionStatistics[];
@@ -132,6 +133,15 @@ export interface TextResponsePage {
   question: { questionId: string; title: string; required: boolean };
   identityMode: "anonymous" | "identified";
   items: TextResponseItem[];
+  nextCursor: string | null;
+}
+export interface IdentifiedSubmissionItem {
+  submittedAt: string;
+  respondent: { id: string; username: string } | null;
+}
+export interface IdentifiedSubmissionPage {
+  identityMode: "identified";
+  items: IdentifiedSubmissionItem[];
   nextCursor: string | null;
 }
 
@@ -330,6 +340,15 @@ export const listTextResponses = (
 ) =>
   apiRequest<TextResponsePage>(
     `/api/surveys/${surveyId}/versions/${versionId}/responses?questionId=${encodeURIComponent(questionId)}&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+  );
+
+export const listIdentifiedSubmissions = (
+  surveyId: string,
+  versionId: string,
+  cursor?: string,
+) =>
+  apiRequest<IdentifiedSubmissionPage>(
+    `/api/surveys/${surveyId}/versions/${versionId}/submissions?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
   );
 
 const prefix = (surveyId: string, versionId: string) =>

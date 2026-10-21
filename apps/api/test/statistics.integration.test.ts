@@ -237,6 +237,7 @@ describe("creator statistics", () => {
       .expect(200);
     expect(result.headers["cache-control"]).toBe("no-store");
     expect(result.body).toMatchObject({
+      identityMode: "anonymous",
       submissionCount: 3,
       generatedAt: now.toISOString(),
       questions: [
@@ -452,6 +453,87 @@ describe("creator statistics", () => {
       result.body,
       new Set(["ownerKey", "dedupKey", "fillSessionId", "respondentKey"]),
     );
+  });
+
+  it("lists every identified submission even when no text answer exists", async () => {
+    await SurveyVersionModel.updateOne(
+      { _id: versionId },
+      { identityMode: "identified" },
+    );
+    await SurveyResponseModel.updateMany(
+      { surveyVersionId: versionId },
+      { respondentId: otherId },
+    );
+    const userQueries = vi.spyOn(UserModel, "find");
+    let first: Response;
+    try {
+      first = await request(app)
+        .get(
+          `/api/surveys/${surveyId}/versions/${versionId}/submissions?limit=2`,
+        )
+        .set("Cookie", cookie(ownerId))
+        .expect(200);
+      expect(userQueries).toHaveBeenCalledTimes(1);
+    } finally {
+      userQueries.mockRestore();
+    }
+    expect(first.headers["cache-control"]).toBe("no-store");
+    expect(first.body).toMatchObject({
+      identityMode: "identified",
+      items: [
+        {
+          submittedAt: "2027-01-03T03:04:05.333Z",
+          respondent: {
+            id: otherId.toString(),
+            username: "statistics_other",
+          },
+        },
+        {
+          submittedAt: "2027-01-02T02:03:04.222Z",
+          respondent: {
+            id: otherId.toString(),
+            username: "statistics_other",
+          },
+        },
+      ],
+    });
+    expect(first.body.nextCursor).toEqual(expect.any(String));
+    const second = await request(app)
+      .get(
+        `/api/surveys/${surveyId}/versions/${versionId}/submissions?limit=2&cursor=${encodeURIComponent(first.body.nextCursor)}`,
+      )
+      .set("Cookie", cookie(ownerId))
+      .expect(200);
+    expect(second.body.items).toEqual([
+      {
+        submittedAt: "2027-01-01T01:02:03.111Z",
+        respondent: {
+          id: otherId.toString(),
+          username: "statistics_other",
+        },
+      },
+    ]);
+    expect(second.body.nextCursor).toBeNull();
+    expectNoKeys(
+      first.body,
+      new Set(["ownerKey", "dedupKey", "fillSessionId", "respondentKey"]),
+    );
+  });
+
+  it("never exposes a submission identity list for anonymous versions", async () => {
+    const result = await request(app)
+      .get(`/api/surveys/${surveyId}/versions/${versionId}/submissions`)
+      .set("Cookie", cookie(ownerId))
+      .expect(400);
+    expect(result.body.error.code).toBe("VALIDATION_ERROR");
+    await request(app)
+      .get(`/api/surveys/${surveyId}/versions/${versionId}/submissions?extra=1`)
+      .set("Cookie", cookie(ownerId))
+      .expect(400);
+    await request(app)
+      .get(`/api/surveys/${surveyId}/versions/${versionId}/submissions`)
+      .set("Cookie", cookie(otherId))
+      .expect(404);
   });
 
   it("rejects drafts, invalid queries, cross-owner access, and cursor reuse", async () => {

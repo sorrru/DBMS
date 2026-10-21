@@ -5,7 +5,11 @@ import type { AuthDependencies } from "../auth/router.js";
 import { validationError } from "../errors/api-error.js";
 import { StatisticsCursorService } from "./cursor.js";
 import { StatisticsService } from "./service.js";
-import { parseStatisticsQuery, parseTextQuery } from "./validation.js";
+import {
+  parseStatisticsQuery,
+  parseSubmissionQuery,
+  parseTextQuery,
+} from "./validation.js";
 
 function validId(value: string, field: string): string {
   if (!isValidObjectId(value)) throw validationError(field);
@@ -55,6 +59,25 @@ export function createStatisticsRouter(
         validId(request.params.surveyId!, "surveyId"),
         validId(request.params.versionId!, "versionId"),
         query.questionId,
+        query.limit,
+        query.cursor,
+        () => consume(user._id.toString()),
+      );
+      response.set("Cache-Control", "no-store").json(body);
+    },
+  );
+
+  router.get(
+    "/:surveyId/versions/:versionId/submissions",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const query = parseSubmissionQuery(
+        request.query as Record<string, unknown>,
+      );
+      const body = await service.identifiedSubmissions(
+        user._id,
+        validId(request.params.surveyId!, "surveyId"),
+        validId(request.params.versionId!, "versionId"),
         query.limit,
         query.cursor,
         () => consume(user._id.toString()),

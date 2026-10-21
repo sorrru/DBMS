@@ -577,6 +577,16 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 
 匿名项只返回 value 和 UTC `submittedDate`，不返回 ID、精确时间或身份字段；实名项返回 value、精确 submittedAt 和 respondent 的 id、username。匿名页游标使用从 JWT_SECRET 和专用标签派生的 AES-256-GCM 密钥，随机 IV 与认证标签同时保证机密性和防篡改。完整隐私边界、管道和测试约定见 `STATISTICS_DESIGN.md`。
 
+### `GET /api/surveys/:surveyId/versions/:versionId/submissions`
+
+只允许问卷创建者读取已发布的实名版本，用于在没有文本回答时仍能核对全部填写账号。匿名版本返回 `400 VALIDATION_ERROR`，绝不返回账号或精确提交时间。
+
+- `limit` 缺省 20，必须是 1–50 的整数；
+- `cursor` 可选，必须是绑定当前问卷、版本和 `identified-submissions` 类型的 AES-256-GCM 不透明游标；
+- 未知查询参数返回 `VALIDATION_ERROR`。
+
+每次正式提交单独返回一项，不按账号去重；允许重复填写时，同一账号可出现多次。结果按 `submittedAt DESC, _id DESC` 排序，沿既有版本时间索引分页。每项只含精确 `submittedAt` 和 respondent 的 id、username；账号已删除时 respondent 为 null。响应不含 response id、答案、ownerKey、dedupKey 或 fillSessionId，并设置 `Cache-Control: no-store`。
+
 ## 稳定错误码
 
 | HTTP | 错误码                         | 含义                                                       |

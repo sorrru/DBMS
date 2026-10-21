@@ -2,7 +2,9 @@
 import { onMounted, ref, watch } from "vue";
 import {
   getVersionStatistics,
+  listIdentifiedSubmissions,
   listTextResponses,
+  type IdentifiedSubmissionItem,
   type QuestionStatistics,
   type TextResponseItem,
   type VersionStatistics,
@@ -16,6 +18,9 @@ const textItems = ref<Record<string, TextResponseItem[]>>({});
 const textCursors = ref<Record<string, string | null>>({});
 const textModes = ref<Record<string, "anonymous" | "identified">>({});
 const textLoading = ref<string>();
+const submissionItems = ref<IdentifiedSubmissionItem[]>([]);
+const submissionCursor = ref<string | null>(null);
+const submissionsLoading = ref(false);
 
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const numberText = (value: number | null) =>
@@ -24,17 +29,35 @@ const numberText = (value: number | null) =>
 async function loadStatistics(): Promise<void> {
   loading.value = true;
   try {
-    statistics.value = await getVersionStatistics(
-      props.surveyId,
-      props.versionId,
-    );
+    const result = await getVersionStatistics(props.surveyId, props.versionId);
+    statistics.value = result;
     textItems.value = {};
     textCursors.value = {};
     textModes.value = {};
+    submissionItems.value = [];
+    submissionCursor.value = null;
+    if (result.identityMode === "identified") await loadSubmissions();
   } catch (error) {
     emit("failure", error);
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadSubmissions(): Promise<void> {
+  submissionsLoading.value = true;
+  try {
+    const page = await listIdentifiedSubmissions(
+      props.surveyId,
+      props.versionId,
+      submissionCursor.value ?? undefined,
+    );
+    submissionItems.value = [...submissionItems.value, ...page.items];
+    submissionCursor.value = page.nextCursor;
+  } catch (error) {
+    emit("failure", error);
+  } finally {
+    submissionsLoading.value = false;
   }
 }
 
@@ -184,6 +207,31 @@ watch(() => props.versionId, loadStatistics);
         </div>
       </article>
     </div>
-    <p v-else-if="!loading" class="empty-state">尚未取得统计结果。</p>
+    <section
+      v-if="statistics?.identityMode === 'identified'"
+      class="identified-submissions"
+    >
+      <h4>实名提交记录</h4>
+      <p class="muted">每次正式提交单独列出；同一账号可能出现多次。</p>
+      <ol v-if="submissionItems.length" class="submission-list">
+        <li v-for="(item, index) in submissionItems" :key="index">
+          <strong>{{ item.respondent?.username ?? "账号已删除" }}</strong>
+          <span>{{ new Date(item.submittedAt).toLocaleString("zh-CN") }}</span>
+        </li>
+      </ol>
+      <p v-else-if="!submissionsLoading" class="empty-state">
+        暂无实名提交记录。
+      </p>
+      <button
+        v-if="submissionCursor"
+        class="secondary compact"
+        type="button"
+        :disabled="submissionsLoading"
+        @click="loadSubmissions"
+      >
+        {{ submissionsLoading ? "加载中…" : "加载更多提交记录" }}
+      </button>
+    </section>
+    <p v-if="!statistics && !loading" class="empty-state">尚未取得统计结果。</p>
   </section>
 </template>

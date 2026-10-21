@@ -9,17 +9,19 @@
 ```http
 GET /api/surveys/:surveyId/versions/:versionId/statistics
 GET /api/surveys/:surveyId/versions/:versionId/responses?questionId=q_text&limit=20&cursor=...
+GET /api/surveys/:surveyId/versions/:versionId/submissions?limit=20&cursor=...
 ```
 
-`statistics` 拒绝全部未知查询参数。`responses` 只分页读取文本题回答；`questionId` 必填并先按题目 ID 格式校验，`limit` 缺省为 20，必须是 1–50 的整数，cursor 必须成功解密并绑定当前问卷、版本、题目和游标类型。固定判定顺序：
+`statistics` 拒绝全部未知查询参数。`responses` 只分页读取文本题回答；`questionId` 必填并先按题目 ID 格式校验。`submissions` 只分页读取实名版本的提交账号与时间。两个分页接口的 `limit` 缺省为 20，必须是 1–50 的整数，cursor 必须成功解密并绑定当前问卷、版本和游标类型；文本游标还绑定题目。固定判定顺序：
 
 1. 查询参数或路径格式错误：`400 VALIDATION_ERROR`；
 2. 问卷、版本不存在、组合错误或不属于当前账号：`404 SURVEY_NOT_FOUND`；
 3. 版本不是 `published`：`409 VERSION_NOT_PUBLISHED`；
 4. 文本分页的题目不存在：`404 QUESTION_NOT_FOUND`；
 5. 题目不是文本题：`400 VALIDATION_ERROR`；
-6. 用户统计限流；
-7. 执行有 10 秒上限的统计或分页查询。
+6. submissions 的版本不是实名模式：`400 VALIDATION_ERROR`；
+7. 用户统计限流；
+8. 执行有 10 秒上限的统计或分页查询。
 
 查询超时、快照事务无法在限制内完成或数据库暂时无法提供统计时，返回 `503 STATISTICS_UNAVAILABLE`，不暴露驱动错误。两个接口均设置 `Cache-Control: no-store`。越权统一 404。
 
@@ -132,6 +134,8 @@ answeredCount <= reachedCount <= submissionCount
 
 匿名仍有两个明确边界：页内顺序会泄露相对提交先后；样本很少时，文本内容以及数字最小值、最大值可能让创建者推断回答者。第一阶段不做小样本抑制或随机扰动。
 
+实名版本另提供提交记录分页，不依赖任何题目是否作答。每份 response 对应一项，返回精确 submittedAt 和 `{ id, username }` respondent；允许重复填写时同一账号的多份回答分别出现，不做去重。查询沿 `{ surveyVersionId, submittedAt: -1, _id: -1 }` 索引倒序分页，并以一次用户批量查询补全账号。匿名版本不开放该接口。
+
 ## 8. 限流、超时与日志
 
 新增并在启动时校验正整数及合理上限：
@@ -140,13 +144,15 @@ answeredCount <= reachedCount <= submissionCount
 - `STATISTICS_RATE_LIMIT_USER_MAX=30`；
 - `STATISTICS_MAX_TIME_MS=10000`。
 
-统计和文本分页共享单用户窗口，返回既有 `RATE_LIMITED` 与 `Retry-After`。MongoDB `MaxTimeMSExpired`、事务时间限制或可重试后仍无法取得快照统一映射为 `503 STATISTICS_UNAVAILABLE`。未预期错误仍为 `INTERNAL_ERROR`。
+统计、文本分页和实名提交记录共享单用户窗口，返回既有 `RATE_LIMITED` 与 `Retry-After`。MongoDB `MaxTimeMSExpired`、事务时间限制或可重试后仍无法取得快照统一映射为 `503 STATISTICS_UNAVAILABLE`。未预期错误仍为 `INTERNAL_ERROR`。
 
 损坏回答日志按一次请求汇总：未知题目数、未知选项数、非法数字数和受影响版本，不记录匿名正文、ownerKey 或完整 response。
 
 ## 9. 前端
 
 已发布版本只读页与版本历史提供“查看统计”。页面顶部显示版本、提交数、生成时间和手工刷新；不自动轮询。每题卡显示 required、到达、回答、未到达（被跳转跳过）和到达但未答。
+
+实名版本统计页底部自动显示“实名提交记录”，即使问卷没有文本题或填写者未回答文本题也能看到账号。每次提交单独一行显示账号与本地化提交时间，并可继续加载下一页；匿名版本不渲染该区域。
 
 单选、多选显示人数和比例条；多选注明比例之和可能超过 100%。数字无数据时显示“暂无数据”。文本题按页加载，保留换行使用 `white-space: pre-wrap`，匿名条目标注 UTC 日期，实名条目显示账号和精确时间。全部内容按纯文本渲染，不使用 `v-html`。
 

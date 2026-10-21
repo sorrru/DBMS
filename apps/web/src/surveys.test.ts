@@ -6,6 +6,7 @@ import {
   deleteQuestion,
   findSettingsDraft,
   getVersionStatistics,
+  listIdentifiedSubmissions,
   listTextResponses,
   publishVersion,
   saveSettingsDraft,
@@ -38,6 +39,7 @@ describe("statistics requests", () => {
     vi.stubGlobal("fetch", fetchMock);
     await getVersionStatistics("s1", "v2");
     await listTextResponses("s1", "v2", "q_text", "v1.part+/=");
+    await listIdentifiedSubmissions("s1", "v2", "v1.submission+/=");
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "/api/surveys/s1/versions/v2/statistics",
@@ -46,6 +48,11 @@ describe("statistics requests", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "/api/surveys/s1/versions/v2/responses?questionId=q_text&limit=20&cursor=v1.part%2B%2F%3D",
+      { credentials: "include" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/surveys/s1/versions/v2/submissions?limit=20&cursor=v1.submission%2B%2F%3D",
       { credentials: "include" },
     );
   });

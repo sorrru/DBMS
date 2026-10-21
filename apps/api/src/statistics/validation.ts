@@ -34,3 +34,24 @@ export function parseTextQuery(query: Record<string, unknown>): {
     ...(typeof query.cursor === "string" ? { cursor: query.cursor } : {}),
   };
 }
+
+export function parseSubmissionQuery(query: Record<string, unknown>): {
+  limit: number;
+  cursor?: string;
+} {
+  const allowed = new Set(["limit", "cursor"]);
+  if (Object.keys(query).some((key) => !allowed.has(key)))
+    throw validationError("query", "包含未知查询参数");
+  const rawLimit = query.limit ?? "20";
+  if (typeof rawLimit !== "string" || !/^\d+$/.test(rawLimit))
+    throw validationError("limit");
+  const limit = Number(rawLimit);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+    throw validationError("limit", "limit 必须是 1 至 50 的整数");
+  if (query.cursor !== undefined && typeof query.cursor !== "string")
+    throw validationError("cursor");
+  return {
+    limit,
+    ...(typeof query.cursor === "string" ? { cursor: query.cursor } : {}),
+  };
+}

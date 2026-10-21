@@ -254,6 +254,7 @@ export class StatisticsService {
         versionId,
         versionNumber: version.versionNumber,
         title: version.title,
+        identityMode: version.identityMode,
         submissionCount,
         generatedAt: this.clock().toISOString(),
         questions,
@@ -353,6 +354,88 @@ export class StatisticsService {
               surveyId,
               versionId,
               questionId,
+              submittedAt: last.submittedAt.toISOString(),
+              id: last._id.toString(),
+            })
+          : null,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      if (isTransactionUnavailable(error)) statisticsUnavailable(error);
+      throw error;
+    }
+  }
+
+  async identifiedSubmissions(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    limit: number,
+    cursor?: string,
+    onAuthorized?: () => void,
+  ) {
+    const { version } = await this.ownedPublishedVersion(
+      ownerId,
+      surveyId,
+      versionId,
+    );
+    if (version.identityMode !== "identified")
+      throw validationError(
+        "versionId",
+        "匿名版本不提供填写账号或提交时间列表",
+      );
+    onAuthorized?.();
+    const decoded = cursor
+      ? this.cursors.decodeSubmissions(cursor, { surveyId, versionId })
+      : undefined;
+    try {
+      const rows = await SurveyResponseModel.find({
+        surveyVersionId: id(versionId),
+        ...(decoded
+          ? {
+              $or: [
+                { submittedAt: { $lt: new Date(decoded.submittedAt) } },
+                {
+                  submittedAt: new Date(decoded.submittedAt),
+                  _id: { $lt: id(decoded.id) },
+                },
+              ],
+            }
+          : {}),
+      })
+        .sort({ submittedAt: -1, _id: -1 })
+        .limit(limit + 1)
+        .select({ respondentId: 1, submittedAt: 1 })
+        .hint({ surveyVersionId: 1, submittedAt: -1, _id: -1 })
+        .setOptions({ maxTimeMS: this.env.statisticsMaxTimeMs })
+        .lean();
+      const hasMore = rows.length > limit;
+      const page = rows.slice(0, limit);
+      const userIds = page.flatMap((row) =>
+        row.respondentId ? [row.respondentId] : [],
+      );
+      const documents = await UserModel.find({ _id: { $in: userIds } })
+        .select({ username: 1 })
+        .lean();
+      const users = new Map(
+        documents.map((user) => [
+          user._id.toString(),
+          { id: user._id.toString(), username: user.username },
+        ]),
+      );
+      const last = hasMore ? page.at(-1) : undefined;
+      return {
+        identityMode: "identified" as const,
+        items: page.map((row) => ({
+          submittedAt: row.submittedAt.toISOString(),
+          respondent: row.respondentId
+            ? (users.get(row.respondentId.toString()) ?? null)
+            : null,
+        })),
+        nextCursor: last
+          ? this.cursors.encodeSubmissions({
+              surveyId,
+              versionId,
               submittedAt: last.submittedAt.toISOString(),
               id: last._id.toString(),
             })

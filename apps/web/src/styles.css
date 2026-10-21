@@ -1174,6 +1174,36 @@ input:focus {
   margin-top: 0.8rem;
 }
 
+.identified-submissions {
+  margin-top: 1.25rem;
+  border-top: 1px solid #dce4ee;
+  padding-top: 1.25rem;
+}
+
+.identified-submissions h4 {
+  margin: 0 0 0.35rem;
+}
+
+.submission-list {
+  display: grid;
+  gap: 0;
+  margin: 0.8rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submission-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #e3e9f0;
+  padding: 0.7rem 0;
+}
+
+.submission-list span {
+  color: #66758a;
+}
+
 .text-response-list p {
   margin: 0.3rem 0 0;
   white-space: pre-wrap;

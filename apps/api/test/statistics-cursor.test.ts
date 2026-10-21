@@ -44,13 +44,40 @@ describe("encrypted statistics text cursor", () => {
       submittedAt: new Date().toISOString(),
       id,
     });
-    const last = token.at(-1)!;
+    const parts = token.split(".");
+    const encrypted = parts[2]!;
+    const first = encrypted[0]!;
+    parts[2] = `${first === "A" ? "B" : "A"}${encrypted.slice(1)}`;
     expect(() =>
-      cursors.decode(`${token.slice(0, -1)}${last === "A" ? "B" : "A"}`, {
+      cursors.decode(parts.join("."), {
         surveyId,
         versionId,
         questionId: "q_text",
       }),
+    ).toThrow();
+  });
+
+  it("binds identified submission cursors to their survey and version", () => {
+    const submittedAt = "2027-01-03T04:05:06.789Z";
+    const token = cursors.encodeSubmissions({
+      surveyId,
+      versionId,
+      submittedAt,
+      id,
+    });
+    expect(token).not.toContain(submittedAt);
+    expect(token).not.toContain(id);
+    expect(
+      cursors.decodeSubmissions(token, { surveyId, versionId }),
+    ).toMatchObject({ submittedAt, id });
+    expect(() =>
+      cursors.decodeSubmissions(token, {
+        surveyId,
+        versionId: new Types.ObjectId().toString(),
+      }),
+    ).toThrow();
+    expect(() =>
+      cursors.decode(token, { surveyId, versionId, questionId: "q_text" }),
     ).toThrow();
   });
 });

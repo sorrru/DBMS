@@ -269,7 +269,7 @@ survey_version
 - `notReachedCount`：未到达、被跳转跳过的人数。
 - `unansweredReachedCount`：到达题目但没有作答的人数。
 
-统计只开放给已发布版本，在只读快照事务内执行多条职责单一且带超时的聚合管道；单选、多选和数字结果严格按 `surveyVersionId` 隔离。文本正文通过 `/responses?questionId=...` 分页，只允许文本题。匿名页只返回 UTC 日期，分页游标用 AES-256-GCM 隐藏精确时间和 ObjectId；详细约定见 `STATISTICS_DESIGN.md`。
+统计只开放给已发布版本，在只读快照事务内执行多条职责单一且带超时的聚合管道；单选、多选和数字结果严格按 `surveyVersionId` 隔离。文本正文通过 `/responses?questionId=...` 分页，只允许文本题。实名版本另通过 `/submissions` 分页显示每次正式提交的账号和时间，不依赖文本题作答；匿名版本不开放该身份列表。匿名文本页只返回 UTC 日期，分页游标用 AES-256-GCM 隐藏精确时间和 ObjectId；详细约定见 `STATISTICS_DESIGN.md`。
 
 前端修改早期答案后必须重算路径，并清除新路径之外的旧答案。后端独立重算，不能直接相信前端结果。
 
@@ -384,6 +384,7 @@ v1 保留历史回答与统计
 | ---- | --------------------------------------------------------------------- | ------------------ |
 | GET  | `/api/surveys/:surveyId/versions/:versionId/statistics`               | 版本统计           |
 | GET  | `/api/surveys/:surveyId/versions/:versionId/responses?questionId=...` | 分页查看文本题回答 |
+| GET  | `/api/surveys/:surveyId/versions/:versionId/submissions`              | 分页查看实名提交   |
 
 ### 问卷与版本错误码
 
