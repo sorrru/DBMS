@@ -242,7 +242,8 @@ v1 保留历史回答和统计
 
 ## 设计文档
 
-- [第一阶段项目报告](docs/PROJECT_REPORT.md)
+- [第一阶段项目报告（DOCX）](docs/PROJECT_REPORT.docx)
+- [第一阶段项目报告（Markdown 源稿）](docs/PROJECT_REPORT.md)
 - [项目报告事实核对表](docs/REPORT_FACT_CHECK.md)
 - [AI 使用过程日志](docs/AI_USAGE_LOG.md)
 - [需求决策记录](docs/REQUIREMENTS_DECISIONS.md)
