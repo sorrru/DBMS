@@ -1,0 +1,1846 @@
+{
+  "date": "2026-10-22",
+  "mongoVersion": "8.0.34",
+  "dataset": {
+    "surveys": 2000,
+    "versions": 6000,
+    "usages": 30000,
+    "owners": 20,
+    "identities": 40,
+    "seed": "fixed modular s/v/q formulas"
+  },
+  "results": [
+    {
+      "name": "ownDetails",
+      "scheme": "A",
+      "rows": 20,
+      "explain": {
+        "explainVersion": "1",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_versions",
+                "parsedQuery": {
+                  "questions.source.libraryQuestionId": {
+                    "$eq": "000000000000000000001388"
+                  }
+                },
+                "indexFilterSet": false,
+                "queryHash": "88454E23",
+                "planCacheShapeHash": "88454E23",
+                "planCacheKey": "18900340",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 600,
+                "executionTimeMillis": 21,
+                "totalKeysExamined": 600,
+                "totalDocsExamined": 600,
+                "executionStages": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "nReturned": 600,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 601,
+                  "advanced": 600,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 5,
+                  "restoreState": 5,
+                  "isEOF": 1,
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "nReturned": 600,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 601,
+                    "advanced": 600,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 5,
+                    "restoreState": 5,
+                    "isEOF": 1,
+                    "docsExamined": 600,
+                    "alreadyHasObj": 0,
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nReturned": 600,
+                      "executionTimeMillisEstimate": 0,
+                      "works": 601,
+                      "advanced": 600,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 5,
+                      "restoreState": 5,
+                      "isEOF": 1,
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      },
+                      "keysExamined": 600,
+                      "seeks": 1,
+                      "dupsTested": 600,
+                      "dupsDropped": 0
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 600,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$unwind": {
+              "path": "$questions"
+            },
+            "nReturned": 3000,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$match": {
+              "questions.source.libraryQuestionId": {
+                "$eq": "000000000000000000001388"
+              }
+            },
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$lookup": {
+              "from": "d8_surveys",
+              "as": "survey",
+              "localField": "surveyId",
+              "foreignField": "_id",
+              "unwinding": {
+                "preserveNullAndEmptyArrays": false
+              }
+            },
+            "totalDocsExamined": 750,
+            "totalKeysExamined": 750,
+            "collectionScans": 0,
+            "indexesUsed": ["_id_"],
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 21
+          },
+          {
+            "$project": {
+              "surveyId": true,
+              "status": true,
+              "ownerId": "$survey.ownerId",
+              "surveyVersionId": "$_id",
+              "questionId": "$questions.questionId",
+              "questionVersionId": "$questions.source.questionVersionId",
+              "_id": false
+            },
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 21
+          },
+          {
+            "$match": {
+              "ownerId": {
+                "$eq": "000000000000000000000001"
+              }
+            },
+            "nReturned": 300,
+            "executionTimeMillisEstimate": 21
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              },
+              "limit": 20
+            },
+            "totalDataSizeSortedBytesEstimate": 14180,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 20,
+            "executionTimeMillisEstimate": 21
+          }
+        ],
+        "queryShapeHash": "05E2B24EECCC392B247A9E8D8BE4273C9D89D6256D34D6FDC38B19958C7706E1",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_versions",
+          "pipeline": [
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$unwind": "$questions"
+            },
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$lookup": {
+                "from": "d8_surveys",
+                "localField": "surveyId",
+                "foreignField": "_id",
+                "as": "survey"
+              }
+            },
+            {
+              "$unwind": "$survey"
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": "$survey.ownerId",
+                "surveyId": 1,
+                "surveyVersionId": "$_id",
+                "questionId": "$questions.questionId",
+                "questionVersionId": "$questions.source.questionVersionId",
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": "000000000000000000000001"
+              }
+            },
+            {
+              "$sort": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            },
+            {
+              "$limit": 20
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    },
+    {
+      "name": "ownDetails",
+      "scheme": "B",
+      "rows": 20,
+      "explain": {
+        "explainVersion": "1",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_usages",
+                "parsedQuery": {
+                  "$and": [
+                    {
+                      "libraryQuestionId": {
+                        "$eq": "000000000000000000001388"
+                      }
+                    },
+                    {
+                      "ownerId": {
+                        "$eq": "000000000000000000000001"
+                      }
+                    }
+                  ]
+                },
+                "indexFilterSet": false,
+                "queryHash": "47D0575A",
+                "planCacheShapeHash": "47D0575A",
+                "planCacheKey": "3CAEA0BE",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "ownerId": true,
+                    "surveyId": true,
+                    "surveyVersionId": true,
+                    "questionId": true,
+                    "questionVersionId": true,
+                    "status": true,
+                    "_id": false
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "libraryQuestionId": 1,
+                        "ownerId": 1,
+                        "status": 1,
+                        "surveyVersionId": 1,
+                        "questionId": 1
+                      },
+                      "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "libraryQuestionId": [],
+                        "ownerId": [],
+                        "status": [],
+                        "surveyVersionId": [],
+                        "questionId": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ],
+                        "ownerId": [
+                          "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+                        ],
+                        "status": ["[MinKey, MaxKey]"],
+                        "surveyVersionId": ["[MinKey, MaxKey]"],
+                        "questionId": ["[MinKey, MaxKey]"]
+                      }
+                    }
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 300,
+                "executionTimeMillis": 0,
+                "totalKeysExamined": 300,
+                "totalDocsExamined": 300,
+                "executionStages": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "nReturned": 300,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 301,
+                  "advanced": 300,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 4,
+                  "restoreState": 4,
+                  "isEOF": 1,
+                  "transformBy": {
+                    "ownerId": true,
+                    "surveyId": true,
+                    "surveyVersionId": true,
+                    "questionId": true,
+                    "questionVersionId": true,
+                    "status": true,
+                    "_id": false
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "nReturned": 300,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 301,
+                    "advanced": 300,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 4,
+                    "restoreState": 4,
+                    "isEOF": 1,
+                    "docsExamined": 300,
+                    "alreadyHasObj": 0,
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nReturned": 300,
+                      "executionTimeMillisEstimate": 0,
+                      "works": 301,
+                      "advanced": 300,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 4,
+                      "restoreState": 4,
+                      "isEOF": 1,
+                      "keyPattern": {
+                        "libraryQuestionId": 1,
+                        "ownerId": 1,
+                        "status": 1,
+                        "surveyVersionId": 1,
+                        "questionId": 1
+                      },
+                      "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "libraryQuestionId": [],
+                        "ownerId": [],
+                        "status": [],
+                        "surveyVersionId": [],
+                        "questionId": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ],
+                        "ownerId": [
+                          "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+                        ],
+                        "status": ["[MinKey, MaxKey]"],
+                        "surveyVersionId": ["[MinKey, MaxKey]"],
+                        "questionId": ["[MinKey, MaxKey]"]
+                      },
+                      "keysExamined": 300,
+                      "seeks": 1,
+                      "dupsTested": 0,
+                      "dupsDropped": 0
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 300,
+            "executionTimeMillisEstimate": 1
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              },
+              "limit": 20
+            },
+            "totalDataSizeSortedBytesEstimate": 6816,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 20,
+            "executionTimeMillisEstimate": 1
+          }
+        ],
+        "queryShapeHash": "C64887ECF0ED98A52AC634CF4CD1355051B9EDD769A38CD4EA2A4D96C437E88A",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_usages",
+          "pipeline": [
+            {
+              "$match": {
+                "libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": 1,
+                "surveyId": 1,
+                "surveyVersionId": 1,
+                "questionId": 1,
+                "questionVersionId": 1,
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": "000000000000000000000001"
+              }
+            },
+            {
+              "$sort": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            },
+            {
+              "$limit": 20
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    },
+    {
+      "name": "othersSummary",
+      "scheme": "A",
+      "rows": 9,
+      "explain": {
+        "explainVersion": "1",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_versions",
+                "parsedQuery": {
+                  "questions.source.libraryQuestionId": {
+                    "$eq": "000000000000000000001388"
+                  }
+                },
+                "indexFilterSet": false,
+                "queryHash": "88454E23",
+                "planCacheShapeHash": "88454E23",
+                "planCacheKey": "18900340",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 600,
+                "executionTimeMillis": 20,
+                "totalKeysExamined": 600,
+                "totalDocsExamined": 600,
+                "executionStages": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "nReturned": 600,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 601,
+                  "advanced": 600,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 5,
+                  "restoreState": 5,
+                  "isEOF": 1,
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "nReturned": 600,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 601,
+                    "advanced": 600,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 5,
+                    "restoreState": 5,
+                    "isEOF": 1,
+                    "docsExamined": 600,
+                    "alreadyHasObj": 0,
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nReturned": 600,
+                      "executionTimeMillisEstimate": 0,
+                      "works": 601,
+                      "advanced": 600,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 5,
+                      "restoreState": 5,
+                      "isEOF": 1,
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      },
+                      "keysExamined": 600,
+                      "seeks": 1,
+                      "dupsTested": 600,
+                      "dupsDropped": 0
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 600,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$unwind": {
+              "path": "$questions"
+            },
+            "nReturned": 3000,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$match": {
+              "questions.source.libraryQuestionId": {
+                "$eq": "000000000000000000001388"
+              }
+            },
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$lookup": {
+              "from": "d8_surveys",
+              "as": "survey",
+              "localField": "surveyId",
+              "foreignField": "_id",
+              "unwinding": {
+                "preserveNullAndEmptyArrays": false
+              }
+            },
+            "totalDocsExamined": 751,
+            "totalKeysExamined": 751,
+            "collectionScans": 0,
+            "indexesUsed": ["_id_"],
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 20
+          },
+          {
+            "$project": {
+              "surveyId": true,
+              "status": true,
+              "ownerId": "$survey.ownerId",
+              "surveyVersionId": "$_id",
+              "questionId": "$questions.questionId",
+              "questionVersionId": "$questions.source.questionVersionId",
+              "_id": false
+            },
+            "nReturned": 750,
+            "executionTimeMillisEstimate": 20
+          },
+          {
+            "$match": {
+              "ownerId": {
+                "$not": {
+                  "$eq": "000000000000000000000001"
+                }
+              }
+            },
+            "nReturned": 450,
+            "executionTimeMillisEstimate": 20
+          },
+          {
+            "$group": {
+              "_id": {
+                "ownerId": "$ownerId",
+                "questionVersionId": "$questionVersionId",
+                "status": "$status"
+              },
+              "count": {
+                "$sum": {
+                  "$const": 1
+                }
+              }
+            },
+            "maxAccumulatorMemoryUsageBytes": {
+              "count": 1152
+            },
+            "totalOutputDataSizeBytes": 4698,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "numBytesSpilledEstimate": 0,
+            "spilledRecords": 0,
+            "nReturned": 9,
+            "executionTimeMillisEstimate": 20
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "_id.ownerId": 1,
+                "_id.questionVersionId": 1,
+                "_id.status": 1
+              }
+            },
+            "totalDataSizeSortedBytesEstimate": 5562,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 9,
+            "executionTimeMillisEstimate": 20
+          }
+        ],
+        "queryShapeHash": "5E509FD3BD00D18A263EF9B5C04E71DF01150EC0428D92B2BCDAB7C6A357F475",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_versions",
+          "pipeline": [
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$unwind": "$questions"
+            },
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$lookup": {
+                "from": "d8_surveys",
+                "localField": "surveyId",
+                "foreignField": "_id",
+                "as": "survey"
+              }
+            },
+            {
+              "$unwind": "$survey"
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": "$survey.ownerId",
+                "surveyId": 1,
+                "surveyVersionId": "$_id",
+                "questionId": "$questions.questionId",
+                "questionVersionId": "$questions.source.questionVersionId",
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": {
+                  "$ne": "000000000000000000000001"
+                }
+              }
+            },
+            {
+              "$group": {
+                "_id": {
+                  "ownerId": "$ownerId",
+                  "questionVersionId": "$questionVersionId",
+                  "status": "$status"
+                },
+                "count": {
+                  "$sum": 1
+                }
+              }
+            },
+            {
+              "$sort": {
+                "_id.ownerId": 1,
+                "_id.questionVersionId": 1,
+                "_id.status": 1
+              }
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    },
+    {
+      "name": "othersSummary",
+      "scheme": "B",
+      "rows": 9,
+      "explain": {
+        "explainVersion": "2",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_usages",
+                "parsedQuery": {
+                  "$and": [
+                    {
+                      "libraryQuestionId": {
+                        "$eq": "000000000000000000001388"
+                      }
+                    },
+                    {
+                      "ownerId": {
+                        "$not": {
+                          "$eq": "000000000000000000000001"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "indexFilterSet": false,
+                "queryHash": "4FA7B0EB",
+                "planCacheShapeHash": "4FA7B0EB",
+                "planCacheKey": "39030C68",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "queryPlan": {
+                    "stage": "GROUP",
+                    "planNodeId": 4,
+                    "inputStage": {
+                      "stage": "FETCH",
+                      "planNodeId": 2,
+                      "inputStage": {
+                        "stage": "IXSCAN",
+                        "planNodeId": 1,
+                        "keyPattern": {
+                          "libraryQuestionId": 1,
+                          "ownerId": 1,
+                          "status": 1,
+                          "surveyVersionId": 1,
+                          "questionId": 1
+                        },
+                        "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                        "isMultiKey": false,
+                        "multiKeyPaths": {
+                          "libraryQuestionId": [],
+                          "ownerId": [],
+                          "status": [],
+                          "surveyVersionId": [],
+                          "questionId": []
+                        },
+                        "isUnique": false,
+                        "isSparse": false,
+                        "isPartial": false,
+                        "indexVersion": 2,
+                        "direction": "forward",
+                        "indexBounds": {
+                          "libraryQuestionId": [
+                            "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                          ],
+                          "ownerId": [
+                            "[MinKey, ObjectId('000000000000000000000001'))",
+                            "(ObjectId('000000000000000000000001'), MaxKey]"
+                          ],
+                          "status": ["[MinKey, MaxKey]"],
+                          "surveyVersionId": ["[MinKey, MaxKey]"],
+                          "questionId": ["[MinKey, MaxKey]"]
+                        }
+                      }
+                    }
+                  },
+                  "slotBasedPlan": {
+                    "slots": "$$RESULT=s15 env: { s5 = {\"libraryQuestionId\" : 1, \"ownerId\" : 1, \"status\" : 1, \"surveyVersionId\" : 1, \"questionId\" : 1} }",
+                    "stages": "[4] project [s15 = newObj(\"_id\", s13, \"count\", s14)] \n[4] project [s13 = newObj(\"ownerId\", s8, \"questionVersionId\", s9, \"status\", s10), s14 = (convert ( s12, int32) ?: s12)] \n[4] group [s8, s9, s10] [s12 = count()] spillSlots[s11] mergingExprs[sum(s11)] \n[2] nlj inner [] [s1, s2, s3, s4, s5] \n    left \n        [1] ixscan_generic IndexBounds(\"field #0['libraryQuestionId']: [ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')], field #1['ownerId']: [MinKey, ObjectId('00000000000\"...) s4 s1 s2 s3 lowPriority [] @\"5103723f-4ff9-4759-93fb-7db6cbde6b62\" @\"libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1\" true \n    right \n        [2] limit 1ll \n        [2] seek s1 s6 s7 s2 s3 s4 s5 none none [s8 = ownerId, s9 = questionVersionId, s10 = status] @\"5103723f-4ff9-4759-93fb-7db6cbde6b62\" true false \n"
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 9,
+                "executionTimeMillis": 1,
+                "totalKeysExamined": 452,
+                "totalDocsExamined": 450,
+                "executionStages": {
+                  "stage": "project",
+                  "planNodeId": 4,
+                  "nReturned": 9,
+                  "executionTimeMillisEstimate": 0,
+                  "opens": 1,
+                  "closes": 1,
+                  "saveState": 1,
+                  "restoreState": 1,
+                  "isEOF": 1,
+                  "projections": {
+                    "15": "newObj(\"_id\", s13, \"count\", s14) "
+                  },
+                  "inputStage": {
+                    "stage": "project",
+                    "planNodeId": 4,
+                    "nReturned": 9,
+                    "executionTimeMillisEstimate": 0,
+                    "opens": 1,
+                    "closes": 1,
+                    "saveState": 1,
+                    "restoreState": 1,
+                    "isEOF": 1,
+                    "projections": {
+                      "13": "newObj(\"ownerId\", s8, \"questionVersionId\", s9, \"status\", s10) ",
+                      "14": "(convert ( s12, int32) ?: s12) "
+                    },
+                    "inputStage": {
+                      "stage": "group",
+                      "planNodeId": 4,
+                      "nReturned": 9,
+                      "executionTimeMillisEstimate": 0,
+                      "opens": 1,
+                      "closes": 1,
+                      "saveState": 1,
+                      "restoreState": 1,
+                      "isEOF": 1,
+                      "groupBySlots": [8, 9, 10],
+                      "expressions": {
+                        "12": "count() ",
+                        "initExprs": {
+                          "12": null
+                        }
+                      },
+                      "mergingExprs": {
+                        "11": "sum(s11) "
+                      },
+                      "usedDisk": false,
+                      "spills": 0,
+                      "spilledBytes": 0,
+                      "spilledRecords": 0,
+                      "spilledDataStorageSize": 0,
+                      "inputStage": {
+                        "stage": "nlj",
+                        "planNodeId": 2,
+                        "nReturned": 450,
+                        "executionTimeMillisEstimate": 0,
+                        "opens": 1,
+                        "closes": 1,
+                        "saveState": 1,
+                        "restoreState": 1,
+                        "isEOF": 1,
+                        "totalDocsExamined": 450,
+                        "totalKeysExamined": 452,
+                        "collectionScans": 0,
+                        "collectionSeeks": 450,
+                        "indexScans": 0,
+                        "indexSeeks": 1,
+                        "indexesUsed": [
+                          "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1"
+                        ],
+                        "innerOpens": 450,
+                        "innerCloses": 1,
+                        "outerProjects": [],
+                        "outerCorrelated": [1, 2, 3, 4, 5],
+                        "outerStage": {
+                          "stage": "ixscan_generic",
+                          "planNodeId": 1,
+                          "nReturned": 450,
+                          "executionTimeMillisEstimate": 0,
+                          "opens": 1,
+                          "closes": 1,
+                          "saveState": 1,
+                          "restoreState": 1,
+                          "isEOF": 1,
+                          "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                          "keysExamined": 452,
+                          "seeks": 2,
+                          "numReads": 452,
+                          "indexKeySlot": 4,
+                          "recordIdSlot": 1,
+                          "snapshotIdSlot": 2,
+                          "indexIdentSlot": 3,
+                          "outputSlots": [],
+                          "indexKeysToInclude": "00000000000000000000000000000000"
+                        },
+                        "innerStage": {
+                          "stage": "limit",
+                          "planNodeId": 2,
+                          "nReturned": 450,
+                          "executionTimeMillisEstimate": 0,
+                          "opens": 450,
+                          "closes": 1,
+                          "saveState": 1,
+                          "restoreState": 1,
+                          "isEOF": 1,
+                          "limit": 1,
+                          "inputStage": {
+                            "stage": "seek",
+                            "planNodeId": 2,
+                            "nReturned": 450,
+                            "executionTimeMillisEstimate": 0,
+                            "opens": 450,
+                            "closes": 1,
+                            "saveState": 1,
+                            "restoreState": 1,
+                            "isEOF": 0,
+                            "numReads": 450,
+                            "recordSlot": 6,
+                            "recordIdSlot": 7,
+                            "seekRecordIdSlot": 1,
+                            "snapshotIdSlot": 2,
+                            "indexIdentSlot": 3,
+                            "indexKeySlot": 4,
+                            "indexKeyPatternSlot": 5,
+                            "scanFieldNames": [
+                              "ownerId",
+                              "questionVersionId",
+                              "status"
+                            ],
+                            "scanFieldSlots": [8, 9, 10]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 9,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "_id.ownerId": 1,
+                "_id.questionVersionId": 1,
+                "_id.status": 1
+              }
+            },
+            "totalDataSizeSortedBytesEstimate": 6426,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 9,
+            "executionTimeMillisEstimate": 0
+          }
+        ],
+        "queryShapeHash": "E85D77BA7FB2C6E09789B7A98673501E62CFDBB4D8B0C26D58DE053B4C715CBC",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_usages",
+          "pipeline": [
+            {
+              "$match": {
+                "libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": 1,
+                "surveyId": 1,
+                "surveyVersionId": 1,
+                "questionId": 1,
+                "questionVersionId": 1,
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": {
+                  "$ne": "000000000000000000000001"
+                }
+              }
+            },
+            {
+              "$group": {
+                "_id": {
+                  "ownerId": "$ownerId",
+                  "questionVersionId": "$questionVersionId",
+                  "status": "$status"
+                },
+                "count": {
+                  "$sum": 1
+                }
+              }
+            },
+            {
+              "$sort": {
+                "_id.ownerId": 1,
+                "_id.questionVersionId": 1,
+                "_id.status": 1
+              }
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    },
+    {
+      "name": "statisticsSources",
+      "scheme": "A",
+      "rows": 200,
+      "explain": {
+        "explainVersion": "1",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_versions",
+                "parsedQuery": {
+                  "$and": [
+                    {
+                      "questions.source.libraryQuestionId": {
+                        "$eq": "000000000000000000001388"
+                      }
+                    },
+                    {
+                      "status": {
+                        "$eq": "published"
+                      }
+                    }
+                  ]
+                },
+                "indexFilterSet": false,
+                "queryHash": "D1671084",
+                "planCacheShapeHash": "D1671084",
+                "planCacheKey": "17E54215",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "status": {
+                        "$eq": "published"
+                      }
+                    },
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 400,
+                "executionTimeMillis": 14,
+                "totalKeysExamined": 600,
+                "totalDocsExamined": 600,
+                "executionStages": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "nReturned": 400,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 601,
+                  "advanced": 400,
+                  "needTime": 200,
+                  "needYield": 0,
+                  "saveState": 4,
+                  "restoreState": 4,
+                  "isEOF": 1,
+                  "transformBy": {
+                    "_id": 1,
+                    "questions": 1,
+                    "status": 1,
+                    "surveyId": 1
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "filter": {
+                      "status": {
+                        "$eq": "published"
+                      }
+                    },
+                    "nReturned": 400,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 601,
+                    "advanced": 400,
+                    "needTime": 200,
+                    "needYield": 0,
+                    "saveState": 4,
+                    "restoreState": 4,
+                    "isEOF": 1,
+                    "docsExamined": 600,
+                    "alreadyHasObj": 0,
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nReturned": 600,
+                      "executionTimeMillisEstimate": 0,
+                      "works": 601,
+                      "advanced": 600,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 4,
+                      "restoreState": 4,
+                      "isEOF": 1,
+                      "keyPattern": {
+                        "questions.source.libraryQuestionId": 1
+                      },
+                      "indexName": "questions.source.libraryQuestionId_1",
+                      "isMultiKey": true,
+                      "multiKeyPaths": {
+                        "questions.source.libraryQuestionId": ["questions"]
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "questions.source.libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ]
+                      },
+                      "keysExamined": 600,
+                      "seeks": 1,
+                      "dupsTested": 600,
+                      "dupsDropped": 0
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 400,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$unwind": {
+              "path": "$questions"
+            },
+            "nReturned": 2000,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$match": {
+              "questions.source.libraryQuestionId": {
+                "$eq": "000000000000000000001388"
+              }
+            },
+            "nReturned": 500,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$lookup": {
+              "from": "d8_surveys",
+              "as": "survey",
+              "localField": "surveyId",
+              "foreignField": "_id",
+              "unwinding": {
+                "preserveNullAndEmptyArrays": false
+              }
+            },
+            "totalDocsExamined": 500,
+            "totalKeysExamined": 500,
+            "collectionScans": 0,
+            "indexesUsed": ["_id_"],
+            "nReturned": 500,
+            "executionTimeMillisEstimate": 14
+          },
+          {
+            "$project": {
+              "surveyId": true,
+              "status": true,
+              "ownerId": "$survey.ownerId",
+              "surveyVersionId": "$_id",
+              "questionId": "$questions.questionId",
+              "questionVersionId": "$questions.source.questionVersionId",
+              "_id": false
+            },
+            "nReturned": 500,
+            "executionTimeMillisEstimate": 14
+          },
+          {
+            "$match": {
+              "ownerId": {
+                "$eq": "000000000000000000000001"
+              }
+            },
+            "nReturned": 200,
+            "executionTimeMillisEstimate": 14
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            },
+            "totalDataSizeSortedBytesEstimate": 141800,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 200,
+            "executionTimeMillisEstimate": 14
+          }
+        ],
+        "queryShapeHash": "FDCC63A59CFA03BA9FE009E5A461FDACA675A3CEA09028FEF77440DFEA1F985F",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_versions",
+          "pipeline": [
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$unwind": "$questions"
+            },
+            {
+              "$match": {
+                "questions.source.libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$lookup": {
+                "from": "d8_surveys",
+                "localField": "surveyId",
+                "foreignField": "_id",
+                "as": "survey"
+              }
+            },
+            {
+              "$unwind": "$survey"
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": "$survey.ownerId",
+                "surveyId": 1,
+                "surveyVersionId": "$_id",
+                "questionId": "$questions.questionId",
+                "questionVersionId": "$questions.source.questionVersionId",
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": "000000000000000000000001",
+                "status": "published"
+              }
+            },
+            {
+              "$sort": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    },
+    {
+      "name": "statisticsSources",
+      "scheme": "B",
+      "rows": 200,
+      "explain": {
+        "explainVersion": "1",
+        "stages": [
+          {
+            "$cursor": {
+              "queryPlanner": {
+                "namespace": "survey_stage2_d8_test.d8_usages",
+                "parsedQuery": {
+                  "$and": [
+                    {
+                      "libraryQuestionId": {
+                        "$eq": "000000000000000000001388"
+                      }
+                    },
+                    {
+                      "ownerId": {
+                        "$eq": "000000000000000000000001"
+                      }
+                    },
+                    {
+                      "status": {
+                        "$eq": "published"
+                      }
+                    }
+                  ]
+                },
+                "indexFilterSet": false,
+                "queryHash": "D364DA2F",
+                "planCacheShapeHash": "D364DA2F",
+                "planCacheKey": "6541E54C",
+                "optimizationTimeMillis": 0,
+                "maxIndexedOrSolutionsReached": false,
+                "maxIndexedAndSolutionsReached": false,
+                "maxScansToExplodeReached": false,
+                "prunedSimilarIndexes": false,
+                "winningPlan": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "transformBy": {
+                    "ownerId": true,
+                    "surveyId": true,
+                    "surveyVersionId": true,
+                    "questionId": true,
+                    "questionVersionId": true,
+                    "status": true,
+                    "_id": false
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "keyPattern": {
+                        "libraryQuestionId": 1,
+                        "ownerId": 1,
+                        "status": 1,
+                        "surveyVersionId": 1,
+                        "questionId": 1
+                      },
+                      "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "libraryQuestionId": [],
+                        "ownerId": [],
+                        "status": [],
+                        "surveyVersionId": [],
+                        "questionId": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ],
+                        "ownerId": [
+                          "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+                        ],
+                        "status": ["[\"published\", \"published\"]"],
+                        "surveyVersionId": ["[MinKey, MaxKey]"],
+                        "questionId": ["[MinKey, MaxKey]"]
+                      }
+                    }
+                  }
+                },
+                "rejectedPlans": []
+              },
+              "executionStats": {
+                "executionSuccess": true,
+                "nReturned": 200,
+                "executionTimeMillis": 0,
+                "totalKeysExamined": 200,
+                "totalDocsExamined": 200,
+                "executionStages": {
+                  "isCached": false,
+                  "stage": "PROJECTION_SIMPLE",
+                  "nReturned": 200,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 201,
+                  "advanced": 200,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 3,
+                  "restoreState": 3,
+                  "isEOF": 1,
+                  "transformBy": {
+                    "ownerId": true,
+                    "surveyId": true,
+                    "surveyVersionId": true,
+                    "questionId": true,
+                    "questionVersionId": true,
+                    "status": true,
+                    "_id": false
+                  },
+                  "inputStage": {
+                    "stage": "FETCH",
+                    "nReturned": 200,
+                    "executionTimeMillisEstimate": 0,
+                    "works": 201,
+                    "advanced": 200,
+                    "needTime": 0,
+                    "needYield": 0,
+                    "saveState": 3,
+                    "restoreState": 3,
+                    "isEOF": 1,
+                    "docsExamined": 200,
+                    "alreadyHasObj": 0,
+                    "inputStage": {
+                      "stage": "IXSCAN",
+                      "nReturned": 200,
+                      "executionTimeMillisEstimate": 0,
+                      "works": 201,
+                      "advanced": 200,
+                      "needTime": 0,
+                      "needYield": 0,
+                      "saveState": 3,
+                      "restoreState": 3,
+                      "isEOF": 1,
+                      "keyPattern": {
+                        "libraryQuestionId": 1,
+                        "ownerId": 1,
+                        "status": 1,
+                        "surveyVersionId": 1,
+                        "questionId": 1
+                      },
+                      "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+                      "isMultiKey": false,
+                      "multiKeyPaths": {
+                        "libraryQuestionId": [],
+                        "ownerId": [],
+                        "status": [],
+                        "surveyVersionId": [],
+                        "questionId": []
+                      },
+                      "isUnique": false,
+                      "isSparse": false,
+                      "isPartial": false,
+                      "indexVersion": 2,
+                      "direction": "forward",
+                      "indexBounds": {
+                        "libraryQuestionId": [
+                          "[ObjectId('000000000000000000001388'), ObjectId('000000000000000000001388')]"
+                        ],
+                        "ownerId": [
+                          "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+                        ],
+                        "status": ["[\"published\", \"published\"]"],
+                        "surveyVersionId": ["[MinKey, MaxKey]"],
+                        "questionId": ["[MinKey, MaxKey]"]
+                      },
+                      "keysExamined": 200,
+                      "seeks": 1,
+                      "dupsTested": 0,
+                      "dupsDropped": 0
+                    }
+                  }
+                }
+              }
+            },
+            "nReturned": 200,
+            "executionTimeMillisEstimate": 0
+          },
+          {
+            "$sort": {
+              "sortKey": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            },
+            "totalDataSizeSortedBytesEstimate": 68400,
+            "usedDisk": false,
+            "spills": 0,
+            "spilledDataStorageSize": 0,
+            "nReturned": 200,
+            "executionTimeMillisEstimate": 0
+          }
+        ],
+        "queryShapeHash": "4CCB5374ADF9D8535928AF756BD7FB5075E274EEC0280E163FDD395DA07C38D5",
+        "serverInfo": {
+          "host": "00979fc4c412",
+          "port": 27017,
+          "version": "8.0.34",
+          "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+        },
+        "serverParameters": {
+          "internalQueryFacetBufferSizeBytes": 104857600,
+          "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+          "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+          "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+          "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+          "internalQueryProhibitBlockingMergeOnMongoS": 0,
+          "internalQueryMaxAddToSetBytes": 104857600,
+          "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+          "internalQueryFrameworkControl": "trySbeRestricted",
+          "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+        },
+        "command": {
+          "aggregate": "d8_usages",
+          "pipeline": [
+            {
+              "$match": {
+                "libraryQuestionId": "000000000000000000001388"
+              }
+            },
+            {
+              "$project": {
+                "_id": 0,
+                "ownerId": 1,
+                "surveyId": 1,
+                "surveyVersionId": 1,
+                "questionId": 1,
+                "questionVersionId": 1,
+                "status": 1
+              }
+            },
+            {
+              "$match": {
+                "ownerId": "000000000000000000000001",
+                "status": "published"
+              }
+            },
+            {
+              "$sort": {
+                "surveyVersionId": 1,
+                "questionId": 1
+              }
+            }
+          ],
+          "cursor": {},
+          "$db": "survey_stage2_d8_test"
+        },
+        "ok": 1,
+        "$clusterTime": {
+          "clusterTime": {
+            "$timestamp": "7699361750101000215"
+          },
+          "signature": {
+            "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "keyId": 0
+          }
+        },
+        "operationTime": {
+          "$timestamp": "7699361750101000215"
+        }
+      }
+    }
+  ]
+}

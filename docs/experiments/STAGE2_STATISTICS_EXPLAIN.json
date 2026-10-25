@@ -1,0 +1,3658 @@
+{
+  "generatedAt": "2026-10-22T11:46:51.983Z",
+  "mongodbVersion": "8.0.34",
+  "database": "survey_stage2_statistics_benchmark_test",
+  "fixture": {
+    "surveys": 10,
+    "publishedSurveyVersions": 20,
+    "allSources": 40,
+    "ownSources": 20,
+    "responses": 7000,
+    "ownedResponseDocuments": 1000,
+    "expectedAnswerInstances": 2000,
+    "expectedNumberSum": 99000
+  },
+  "actual": {
+    "groupId": "merged",
+    "questionVersionIds": [
+      "00000000000000000000000b",
+      "00000000000000000000000c"
+    ],
+    "opportunityCount": 2000,
+    "reachedCount": 2000,
+    "answeredCount": 2000,
+    "notReachedCount": 0,
+    "unansweredReachedCount": 0,
+    "reachRate": 1,
+    "answerRate": 1,
+    "sourceCount": 20,
+    "surveyCount": 5,
+    "options": [],
+    "number": {
+      "count": 2000,
+      "sum": 99000,
+      "average": 49.5,
+      "minimum": 0,
+      "maximum": 99,
+      "buckets": [
+        {
+          "lower": null,
+          "upper": 0,
+          "count": 0
+        },
+        {
+          "lower": 0,
+          "upper": 18,
+          "count": 360
+        },
+        {
+          "lower": 18,
+          "upper": 30,
+          "count": 240
+        },
+        {
+          "lower": 30,
+          "upper": 45,
+          "count": 300
+        },
+        {
+          "lower": 45,
+          "upper": 60,
+          "count": 300
+        },
+        {
+          "lower": 60,
+          "upper": 120,
+          "count": 800
+        },
+        {
+          "lower": 120,
+          "upper": null,
+          "count": 0
+        }
+      ]
+    }
+  },
+  "sourcePlan": {
+    "explainVersion": "1",
+    "queryPlanner": {
+      "namespace": "survey_stage2_statistics_benchmark_test.question_usages",
+      "parsedQuery": {
+        "$and": [
+          {
+            "libraryQuestionId": {
+              "$eq": "00000000000000000000000a"
+            }
+          },
+          {
+            "ownerId": {
+              "$eq": "000000000000000000000001"
+            }
+          },
+          {
+            "status": {
+              "$eq": "published"
+            }
+          }
+        ]
+      },
+      "indexFilterSet": false,
+      "queryHash": "13AA788D",
+      "planCacheShapeHash": "13AA788D",
+      "planCacheKey": "34368666",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+        "isCached": false,
+        "stage": "LIMIT",
+        "limitAmount": 1001,
+        "inputStage": {
+          "stage": "FETCH",
+          "inputStage": {
+            "stage": "IXSCAN",
+            "keyPattern": {
+              "libraryQuestionId": 1,
+              "ownerId": 1,
+              "status": 1,
+              "surveyVersionId": 1,
+              "questionId": 1
+            },
+            "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+            "isMultiKey": false,
+            "multiKeyPaths": {
+              "libraryQuestionId": [],
+              "ownerId": [],
+              "status": [],
+              "surveyVersionId": [],
+              "questionId": []
+            },
+            "isUnique": false,
+            "isSparse": false,
+            "isPartial": false,
+            "indexVersion": 2,
+            "direction": "forward",
+            "indexBounds": {
+              "libraryQuestionId": [
+                "[ObjectId('00000000000000000000000a'), ObjectId('00000000000000000000000a')]"
+              ],
+              "ownerId": [
+                "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+              ],
+              "status": ["[\"published\", \"published\"]"],
+              "surveyVersionId": ["[MinKey, MaxKey]"],
+              "questionId": ["[MinKey, MaxKey]"]
+            }
+          }
+        }
+      },
+      "rejectedPlans": []
+    },
+    "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 20,
+      "executionTimeMillis": 0,
+      "totalKeysExamined": 20,
+      "totalDocsExamined": 20,
+      "executionStages": {
+        "isCached": false,
+        "stage": "LIMIT",
+        "nReturned": 20,
+        "executionTimeMillisEstimate": 1,
+        "works": 21,
+        "advanced": 20,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 0,
+        "restoreState": 0,
+        "isEOF": 1,
+        "limitAmount": 1001,
+        "inputStage": {
+          "stage": "FETCH",
+          "nReturned": 20,
+          "executionTimeMillisEstimate": 1,
+          "works": 21,
+          "advanced": 20,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 1,
+          "docsExamined": 20,
+          "alreadyHasObj": 0,
+          "inputStage": {
+            "stage": "IXSCAN",
+            "nReturned": 20,
+            "executionTimeMillisEstimate": 1,
+            "works": 21,
+            "advanced": 20,
+            "needTime": 0,
+            "needYield": 0,
+            "saveState": 0,
+            "restoreState": 0,
+            "isEOF": 1,
+            "keyPattern": {
+              "libraryQuestionId": 1,
+              "ownerId": 1,
+              "status": 1,
+              "surveyVersionId": 1,
+              "questionId": 1
+            },
+            "indexName": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1",
+            "isMultiKey": false,
+            "multiKeyPaths": {
+              "libraryQuestionId": [],
+              "ownerId": [],
+              "status": [],
+              "surveyVersionId": [],
+              "questionId": []
+            },
+            "isUnique": false,
+            "isSparse": false,
+            "isPartial": false,
+            "indexVersion": 2,
+            "direction": "forward",
+            "indexBounds": {
+              "libraryQuestionId": [
+                "[ObjectId('00000000000000000000000a'), ObjectId('00000000000000000000000a')]"
+              ],
+              "ownerId": [
+                "[ObjectId('000000000000000000000001'), ObjectId('000000000000000000000001')]"
+              ],
+              "status": ["[\"published\", \"published\"]"],
+              "surveyVersionId": ["[MinKey, MaxKey]"],
+              "questionId": ["[MinKey, MaxKey]"]
+            },
+            "keysExamined": 20,
+            "seeks": 1,
+            "dupsTested": 0,
+            "dupsDropped": 0
+          }
+        }
+      },
+      "allPlansExecution": []
+    },
+    "queryShapeHash": "06BFA4B97BBD7FA05B2B06C1CBE71695695F55636B8F843FD60EF918BB5292F3",
+    "command": {
+      "find": "question_usages",
+      "filter": {
+        "ownerId": "000000000000000000000001",
+        "libraryQuestionId": "00000000000000000000000a",
+        "status": "published"
+      },
+      "hint": {
+        "libraryQuestionId": 1,
+        "ownerId": 1,
+        "status": 1,
+        "surveyVersionId": 1,
+        "questionId": 1
+      },
+      "limit": 1001,
+      "$db": "survey_stage2_statistics_benchmark_test"
+    },
+    "serverInfo": {
+      "host": "00979fc4c412",
+      "port": 27017,
+      "version": "8.0.34",
+      "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+    },
+    "serverParameters": {
+      "internalQueryFacetBufferSizeBytes": 104857600,
+      "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+      "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+      "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+      "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+      "internalQueryProhibitBlockingMergeOnMongoS": 0,
+      "internalQueryMaxAddToSetBytes": 104857600,
+      "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+      "internalQueryFrameworkControl": "trySbeRestricted",
+      "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+    },
+    "ok": 1,
+    "$clusterTime": {
+      "clusterTime": {
+        "$timestamp": "7699457351778041942"
+      },
+      "signature": {
+        "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "keyId": 0
+      }
+    },
+    "operationTime": {
+      "$timestamp": "7699457351778041942"
+    }
+  },
+  "responsePlan": {
+    "explainVersion": "1",
+    "stages": [
+      {
+        "$cursor": {
+          "queryPlanner": {
+            "namespace": "survey_stage2_statistics_benchmark_test.responses",
+            "parsedQuery": {
+              "surveyVersionId": {
+                "$in": [
+                  "0000000000000000000003e8",
+                  "0000000000000000000003e9",
+                  "0000000000000000000003ea",
+                  "0000000000000000000003eb",
+                  "0000000000000000000003ec",
+                  "0000000000000000000003ed",
+                  "0000000000000000000003ee",
+                  "0000000000000000000003ef",
+                  "0000000000000000000003f0",
+                  "0000000000000000000003f1"
+                ]
+              }
+            },
+            "indexFilterSet": false,
+            "queryHash": "0E303387",
+            "planCacheShapeHash": "0E303387",
+            "planCacheKey": "A656E2E4",
+            "optimizationTimeMillis": 0,
+            "maxIndexedOrSolutionsReached": false,
+            "maxIndexedAndSolutionsReached": false,
+            "maxScansToExplodeReached": false,
+            "prunedSimilarIndexes": false,
+            "winningPlan": {
+              "isCached": false,
+              "stage": "PROJECTION_DEFAULT",
+              "transformBy": {
+                "_id": true,
+                "submittedAt": true,
+                "rows": {
+                  "$filter": {
+                    "input": [
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e8"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e8:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e8"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e8:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e9"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e9:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e9"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e9:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ea"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ea:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ea"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ea:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003eb"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003eb:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003eb"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003eb:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ec"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ec:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ec"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ec:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ed"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ed:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ed"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ed:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ee"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ee:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ee"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ee:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ef"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ef:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ef"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ef:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f0"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f0:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f0"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f0:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f1"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f1:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f1"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f1:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      }
+                    ],
+                    "as": "row",
+                    "cond": "$$row.matches"
+                  }
+                }
+              },
+              "inputStage": {
+                "stage": "FETCH",
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "surveyVersionId": 1,
+                    "submittedAt": -1,
+                    "_id": -1
+                  },
+                  "indexName": "surveyVersionId_1_submittedAt_-1__id_-1",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "surveyVersionId": [],
+                    "submittedAt": [],
+                    "_id": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "surveyVersionId": [
+                      "[ObjectId('0000000000000000000003e8'), ObjectId('0000000000000000000003e8')]",
+                      "[ObjectId('0000000000000000000003e9'), ObjectId('0000000000000000000003e9')]",
+                      "[ObjectId('0000000000000000000003ea'), ObjectId('0000000000000000000003ea')]",
+                      "[ObjectId('0000000000000000000003eb'), ObjectId('0000000000000000000003eb')]",
+                      "[ObjectId('0000000000000000000003ec'), ObjectId('0000000000000000000003ec')]",
+                      "[ObjectId('0000000000000000000003ed'), ObjectId('0000000000000000000003ed')]",
+                      "[ObjectId('0000000000000000000003ee'), ObjectId('0000000000000000000003ee')]",
+                      "[ObjectId('0000000000000000000003ef'), ObjectId('0000000000000000000003ef')]",
+                      "[ObjectId('0000000000000000000003f0'), ObjectId('0000000000000000000003f0')]",
+                      "[ObjectId('0000000000000000000003f1'), ObjectId('0000000000000000000003f1')]"
+                    ],
+                    "submittedAt": ["[MaxKey, MinKey]"],
+                    "_id": ["[MaxKey, MinKey]"]
+                  }
+                }
+              }
+            },
+            "rejectedPlans": []
+          },
+          "executionStats": {
+            "executionSuccess": true,
+            "nReturned": 1000,
+            "executionTimeMillis": 26,
+            "totalKeysExamined": 1001,
+            "totalDocsExamined": 1000,
+            "executionStages": {
+              "isCached": false,
+              "stage": "PROJECTION_DEFAULT",
+              "nReturned": 1000,
+              "executionTimeMillisEstimate": 14,
+              "works": 1001,
+              "advanced": 1000,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 7,
+              "restoreState": 7,
+              "isEOF": 1,
+              "transformBy": {
+                "_id": true,
+                "submittedAt": true,
+                "rows": {
+                  "$filter": {
+                    "input": [
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e8"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e8:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e8"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e8:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e9"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e9:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003e9"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003e9:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ea"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ea:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ea"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ea:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003eb"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003eb:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003eb"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003eb:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ec"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ec:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ec"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ec:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ed"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ed:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ed"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ed:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ee"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ee:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ee"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ee:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ef"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ef:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003ef"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003ef:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f0"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f0:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f0"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f0:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000b"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f1"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f1:q_0"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_0"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_0"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      },
+                      {
+                        "matches": {
+                          "$eq": [
+                            "$surveyVersionId",
+                            {
+                              "$const": "0000000000000000000003f1"
+                            }
+                          ]
+                        },
+                        "sourceKey": {
+                          "$const": "0000000000000000000003f1:q_1"
+                        },
+                        "group": {
+                          "$const": "merged"
+                        },
+                        "questionVersionId": {
+                          "$const": "00000000000000000000000c"
+                        },
+                        "reached": {
+                          "$in": [
+                            {
+                              "$const": "q_1"
+                            },
+                            "$questionPath"
+                          ]
+                        },
+                        "answer": {
+                          "$arrayElemAt": [
+                            {
+                              "$filter": {
+                                "input": "$answers",
+                                "as": "a",
+                                "cond": {
+                                  "$eq": [
+                                    "$$a.questionId",
+                                    {
+                                      "$const": "q_1"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "$const": 0
+                            }
+                          ]
+                        },
+                        "options": {
+                          "$const": []
+                        }
+                      }
+                    ],
+                    "as": "row",
+                    "cond": "$$row.matches"
+                  }
+                }
+              },
+              "inputStage": {
+                "stage": "FETCH",
+                "nReturned": 1000,
+                "executionTimeMillisEstimate": 0,
+                "works": 1001,
+                "advanced": 1000,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 7,
+                "restoreState": 7,
+                "isEOF": 1,
+                "docsExamined": 1000,
+                "alreadyHasObj": 0,
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "nReturned": 1000,
+                  "executionTimeMillisEstimate": 0,
+                  "works": 1001,
+                  "advanced": 1000,
+                  "needTime": 0,
+                  "needYield": 0,
+                  "saveState": 7,
+                  "restoreState": 7,
+                  "isEOF": 1,
+                  "keyPattern": {
+                    "surveyVersionId": 1,
+                    "submittedAt": -1,
+                    "_id": -1
+                  },
+                  "indexName": "surveyVersionId_1_submittedAt_-1__id_-1",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "surveyVersionId": [],
+                    "submittedAt": [],
+                    "_id": []
+                  },
+                  "isUnique": false,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "surveyVersionId": [
+                      "[ObjectId('0000000000000000000003e8'), ObjectId('0000000000000000000003e8')]",
+                      "[ObjectId('0000000000000000000003e9'), ObjectId('0000000000000000000003e9')]",
+                      "[ObjectId('0000000000000000000003ea'), ObjectId('0000000000000000000003ea')]",
+                      "[ObjectId('0000000000000000000003eb'), ObjectId('0000000000000000000003eb')]",
+                      "[ObjectId('0000000000000000000003ec'), ObjectId('0000000000000000000003ec')]",
+                      "[ObjectId('0000000000000000000003ed'), ObjectId('0000000000000000000003ed')]",
+                      "[ObjectId('0000000000000000000003ee'), ObjectId('0000000000000000000003ee')]",
+                      "[ObjectId('0000000000000000000003ef'), ObjectId('0000000000000000000003ef')]",
+                      "[ObjectId('0000000000000000000003f0'), ObjectId('0000000000000000000003f0')]",
+                      "[ObjectId('0000000000000000000003f1'), ObjectId('0000000000000000000003f1')]"
+                    ],
+                    "submittedAt": ["[MaxKey, MinKey]"],
+                    "_id": ["[MaxKey, MinKey]"]
+                  },
+                  "keysExamined": 1001,
+                  "seeks": 1,
+                  "dupsTested": 0,
+                  "dupsDropped": 0
+                }
+              }
+            }
+          }
+        },
+        "nReturned": 1000,
+        "executionTimeMillisEstimate": 21
+      },
+      {
+        "$unwind": {
+          "path": "$rows"
+        },
+        "nReturned": 2000,
+        "executionTimeMillisEstimate": 21
+      },
+      {
+        "$set": {
+          "rows": {
+            "answered": {
+              "$ne": [
+                {
+                  "$type": ["$rows.answer.value"]
+                },
+                {
+                  "$const": "missing"
+                }
+              ]
+            }
+          }
+        },
+        "nReturned": 2000,
+        "executionTimeMillisEstimate": 21
+      },
+      {
+        "$facet": {
+          "common": [
+            {
+              "$internalFacetTeeConsumer": {},
+              "nReturned": 2000,
+              "executionTimeMillisEstimate": 21
+            },
+            {
+              "$group": {
+                "_id": "$rows.group",
+                "opportunityCount": {
+                  "$sum": {
+                    "$const": 1
+                  }
+                },
+                "reachedCount": {
+                  "$sum": {
+                    "$cond": [
+                      "$rows.reached",
+                      {
+                        "$const": 1
+                      },
+                      {
+                        "$const": 0
+                      }
+                    ]
+                  }
+                },
+                "answeredCount": {
+                  "$sum": {
+                    "$cond": [
+                      "$rows.answered",
+                      {
+                        "$const": 1
+                      },
+                      {
+                        "$const": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "maxAccumulatorMemoryUsageBytes": {
+                "opportunityCount": 128,
+                "reachedCount": 128,
+                "answeredCount": 128
+              },
+              "totalOutputDataSizeBytes": 309,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "numBytesSpilledEstimate": 0,
+              "spilledRecords": 0,
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 21
+            }
+          ],
+          "numbers": [
+            {
+              "$internalFacetTeeConsumer": {},
+              "nReturned": 2000,
+              "executionTimeMillisEstimate": 0
+            },
+            {
+              "$match": {
+                "rows.answered": {
+                  "$eq": true
+                }
+              },
+              "nReturned": 2000,
+              "executionTimeMillisEstimate": 0
+            },
+            {
+              "$group": {
+                "_id": "$rows.group",
+                "count": {
+                  "$sum": {
+                    "$const": 1
+                  }
+                },
+                "sum": {
+                  "$sum": "$rows.answer.value"
+                },
+                "minimum": {
+                  "$min": "$rows.answer.value"
+                },
+                "maximum": {
+                  "$max": "$rows.answer.value"
+                }
+              },
+              "maxAccumulatorMemoryUsageBytes": {
+                "count": 128,
+                "sum": 128,
+                "minimum": 72,
+                "maximum": 72
+              },
+              "totalOutputDataSizeBytes": 341,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "numBytesSpilledEstimate": 0,
+              "spilledRecords": 0,
+              "nReturned": 1,
+              "executionTimeMillisEstimate": 0
+            }
+          ],
+          "buckets": [
+            {
+              "$internalFacetTeeConsumer": {},
+              "nReturned": 2000,
+              "executionTimeMillisEstimate": 0
+            },
+            {
+              "$match": {
+                "rows.answered": {
+                  "$eq": true
+                }
+              },
+              "nReturned": 2000,
+              "executionTimeMillisEstimate": 0
+            },
+            {
+              "$group": {
+                "_id": {
+                  "group": "$rows.group",
+                  "bucket": {
+                    "$switch": {
+                      "branches": [
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 0
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 0
+                          }
+                        },
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 18
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 1
+                          }
+                        },
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 30
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 2
+                          }
+                        },
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 45
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 3
+                          }
+                        },
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 60
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 4
+                          }
+                        },
+                        {
+                          "case": {
+                            "$lt": [
+                              "$rows.answer.value",
+                              {
+                                "$const": 120
+                              }
+                            ]
+                          },
+                          "then": {
+                            "$const": 5
+                          }
+                        }
+                      ],
+                      "default": {
+                        "$const": 6
+                      }
+                    }
+                  }
+                },
+                "count": {
+                  "$sum": {
+                    "$const": 1
+                  }
+                }
+              },
+              "maxAccumulatorMemoryUsageBytes": {
+                "count": 640
+              },
+              "totalOutputDataSizeBytes": 2450,
+              "usedDisk": false,
+              "spills": 0,
+              "spilledDataStorageSize": 0,
+              "numBytesSpilledEstimate": 0,
+              "spilledRecords": 0,
+              "nReturned": 5,
+              "executionTimeMillisEstimate": 0
+            }
+          ]
+        },
+        "nReturned": 1,
+        "executionTimeMillisEstimate": 21
+      }
+    ],
+    "queryShapeHash": "714D7BE118DF3C996864740B4FDAD96AC02DF8333AFBE47E40BB9001DC39FE52",
+    "serverInfo": {
+      "host": "00979fc4c412",
+      "port": 27017,
+      "version": "8.0.34",
+      "gitVersion": "51db4515a6597aedcf6188ee4e48a27e65b065ae"
+    },
+    "serverParameters": {
+      "internalQueryFacetBufferSizeBytes": 104857600,
+      "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+      "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+      "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+      "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+      "internalQueryProhibitBlockingMergeOnMongoS": 0,
+      "internalQueryMaxAddToSetBytes": 104857600,
+      "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+      "internalQueryFrameworkControl": "trySbeRestricted",
+      "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+    },
+    "command": {
+      "aggregate": "responses",
+      "pipeline": [
+        {
+          "$match": {
+            "surveyVersionId": {
+              "$in": [
+                "0000000000000000000003e8",
+                "0000000000000000000003e9",
+                "0000000000000000000003ea",
+                "0000000000000000000003eb",
+                "0000000000000000000003ec",
+                "0000000000000000000003ed",
+                "0000000000000000000003ee",
+                "0000000000000000000003ef",
+                "0000000000000000000003f0",
+                "0000000000000000000003f1"
+              ]
+            }
+          }
+        },
+        {
+          "$project": {
+            "_id": 1,
+            "submittedAt": 1,
+            "rows": {
+              "$filter": {
+                "input": [
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003e8"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003e8:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003e8"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003e8:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003e9"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003e9:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003e9"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003e9:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ea"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ea:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ea"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ea:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003eb"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003eb:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003eb"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003eb:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ec"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ec:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ec"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ec:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ed"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ed:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ed"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ed:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ee"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ee:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ee"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ee:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ef"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ef:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003ef"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003ef:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003f0"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003f0:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003f0"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003f0:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000b"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003f1"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003f1:q_0"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_0", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_0"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  },
+                  {
+                    "matches": {
+                      "$eq": ["$surveyVersionId", "0000000000000000000003f1"]
+                    },
+                    "sourceKey": {
+                      "$literal": "0000000000000000000003f1:q_1"
+                    },
+                    "group": {
+                      "$literal": "merged"
+                    },
+                    "questionVersionId": {
+                      "$literal": "00000000000000000000000c"
+                    },
+                    "reached": {
+                      "$in": ["q_1", "$questionPath"]
+                    },
+                    "answer": {
+                      "$arrayElemAt": [
+                        {
+                          "$filter": {
+                            "input": "$answers",
+                            "as": "a",
+                            "cond": {
+                              "$eq": ["$$a.questionId", "q_1"]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    "options": {
+                      "$literal": []
+                    }
+                  }
+                ],
+                "as": "row",
+                "cond": "$$row.matches"
+              }
+            }
+          }
+        },
+        {
+          "$unwind": "$rows"
+        },
+        {
+          "$set": {
+            "rows.answered": {
+              "$ne": [
+                {
+                  "$type": "$rows.answer.value"
+                },
+                "missing"
+              ]
+            }
+          }
+        },
+        {
+          "$facet": {
+            "common": [
+              {
+                "$group": {
+                  "_id": "$rows.group",
+                  "opportunityCount": {
+                    "$sum": 1
+                  },
+                  "reachedCount": {
+                    "$sum": {
+                      "$cond": ["$rows.reached", 1, 0]
+                    }
+                  },
+                  "answeredCount": {
+                    "$sum": {
+                      "$cond": ["$rows.answered", 1, 0]
+                    }
+                  }
+                }
+              }
+            ],
+            "numbers": [
+              {
+                "$match": {
+                  "rows.answered": true
+                }
+              },
+              {
+                "$group": {
+                  "_id": "$rows.group",
+                  "count": {
+                    "$sum": 1
+                  },
+                  "sum": {
+                    "$sum": "$rows.answer.value"
+                  },
+                  "minimum": {
+                    "$min": "$rows.answer.value"
+                  },
+                  "maximum": {
+                    "$max": "$rows.answer.value"
+                  }
+                }
+              }
+            ],
+            "buckets": [
+              {
+                "$match": {
+                  "rows.answered": true
+                }
+              },
+              {
+                "$group": {
+                  "_id": {
+                    "group": "$rows.group",
+                    "bucket": {
+                      "$switch": {
+                        "branches": [
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 0]
+                            },
+                            "then": 0
+                          },
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 18]
+                            },
+                            "then": 1
+                          },
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 30]
+                            },
+                            "then": 2
+                          },
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 45]
+                            },
+                            "then": 3
+                          },
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 60]
+                            },
+                            "then": 4
+                          },
+                          {
+                            "case": {
+                              "$lt": ["$rows.answer.value", 120]
+                            },
+                            "then": 5
+                          }
+                        ],
+                        "default": 6
+                      }
+                    }
+                  },
+                  "count": {
+                    "$sum": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "hint": {
+        "surveyVersionId": 1,
+        "submittedAt": -1,
+        "_id": -1
+      },
+      "cursor": {},
+      "$db": "survey_stage2_statistics_benchmark_test"
+    },
+    "ok": 1,
+    "$clusterTime": {
+      "clusterTime": {
+        "$timestamp": "7699457351778041942"
+      },
+      "signature": {
+        "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "keyId": 0
+      }
+    },
+    "operationTime": {
+      "$timestamp": "7699457351778041942"
+    }
+  }
+}

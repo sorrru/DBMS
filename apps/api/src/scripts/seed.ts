@@ -1,3 +1,4 @@
+import { assertLegacySeedSafe } from "../maintenance/seed-safety.js";
 import { createHash, randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import { validateCredentials } from "../auth/validation.js";
@@ -60,6 +61,10 @@ async function cleanSeedData(): Promise<SeedCounts> {
         "_id",
       )) as mongoose.Types.ObjectId[])
     : [];
+  await assertLegacySeedSafe(
+    users.map((user) => user._id),
+    surveyIds,
+  );
   const responses = await deleteIfExists("responses", {
     surveyId: { $in: surveyIds },
   });

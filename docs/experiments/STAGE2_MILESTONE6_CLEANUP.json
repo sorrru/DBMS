@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-10-23T13:19:24.175Z",
+  "readOnlyVerification": true,
+  "results": [
+    {
+      "database": "survey_stage1_test",
+      "counts": {
+        "users": 0,
+        "surveys": 0,
+        "survey_versions": 0,
+        "fill_sessions": 0,
+        "responses": 0,
+        "questions": 0,
+        "question_versions": 0,
+        "library_option_keys": 0,
+        "question_usages": 0,
+        "question_shares": 0,
+        "question_banks": 0,
+        "question_bank_items": 0,
+        "stage2_demo_manifest": 0
+      }
+    },
+    {
+      "database": "survey_stage2_m6_cli_test",
+      "counts": {
+        "users": 0,
+        "surveys": 0,
+        "survey_versions": 0,
+        "fill_sessions": 0,
+        "responses": 0,
+        "questions": 0,
+        "question_versions": 0,
+        "library_option_keys": 0,
+        "question_usages": 0,
+        "question_shares": 0,
+        "question_banks": 0,
+        "question_bank_items": 0,
+        "stage2_demo_manifest": 0
+      }
+    }
+  ]
+}

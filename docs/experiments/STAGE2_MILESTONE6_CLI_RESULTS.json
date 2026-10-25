@@ -1,0 +1,422 @@
+{
+  "generatedAt": "2026-10-23T13:17:30.789Z",
+  "database": "survey_stage2_m6_cli_test",
+  "note": "Temporary random password was not recorded. Only dedicated fixture resources were written and cleaned.",
+  "runs": [
+    {
+      "name": "create",
+      "script": "seed:stage2",
+      "arguments": [],
+      "exitCode": 0,
+      "output": [
+        {
+          "created": true,
+          "accounts": ["stage2_teacher", "stage2_student", "stage2_outsider"],
+          "counts": {
+            "users": 3,
+            "surveys": 4,
+            "questions": 5,
+            "banks": 3
+          },
+          "teacherAge": {
+            "count": 3,
+            "sum": 108,
+            "average": 36,
+            "minimum": 18,
+            "maximum": 60,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 1
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 1
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          },
+          "studentAge": {
+            "count": 1,
+            "sum": 88,
+            "average": 88,
+            "minimum": 88,
+            "maximum": 88,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 0
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 0
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "verify-existing",
+      "script": "seed:stage2",
+      "arguments": [],
+      "exitCode": 0,
+      "output": [
+        {
+          "created": false,
+          "accounts": ["stage2_teacher", "stage2_student", "stage2_outsider"],
+          "counts": {
+            "users": 3,
+            "surveys": 4,
+            "questions": 5,
+            "banks": 3
+          },
+          "teacherAge": {
+            "count": 3,
+            "sum": 108,
+            "average": 36,
+            "minimum": 18,
+            "maximum": 60,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 1
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 1
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          },
+          "studentAge": {
+            "count": 1,
+            "sum": 88,
+            "average": 88,
+            "minimum": 88,
+            "maximum": 88,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 0
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 0
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "explicit-reset",
+      "script": "seed:stage2",
+      "arguments": ["--reset", "--confirm-demo-data"],
+      "exitCode": 0,
+      "output": [
+        {
+          "removed": true,
+          "users": 3,
+          "surveys": 4,
+          "questions": 5,
+          "banks": 3
+        },
+        {
+          "created": true,
+          "accounts": ["stage2_teacher", "stage2_student", "stage2_outsider"],
+          "counts": {
+            "users": 3,
+            "surveys": 4,
+            "questions": 5,
+            "banks": 3
+          },
+          "teacherAge": {
+            "count": 3,
+            "sum": 108,
+            "average": 36,
+            "minimum": 18,
+            "maximum": 60,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 1
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 1
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          },
+          "studentAge": {
+            "count": 1,
+            "sum": 88,
+            "average": 88,
+            "minimum": 88,
+            "maximum": 88,
+            "buckets": [
+              {
+                "lower": null,
+                "upper": 0,
+                "count": 0
+              },
+              {
+                "lower": 0,
+                "upper": 18,
+                "count": 0
+              },
+              {
+                "lower": 18,
+                "upper": 30,
+                "count": 0
+              },
+              {
+                "lower": 30,
+                "upper": 45,
+                "count": 0
+              },
+              {
+                "lower": 45,
+                "upper": 60,
+                "count": 0
+              },
+              {
+                "lower": 60,
+                "upper": 120,
+                "count": 1
+              },
+              {
+                "lower": 120,
+                "upper": null,
+                "count": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "read-only-audit",
+      "script": "library:usage-audit",
+      "arguments": ["--all"],
+      "exitCode": 0,
+      "output": [
+        {
+          "ownerId": "6adb5e6917959d92712a70da",
+          "surveyId": "6adb5e6917959d92712a70f0",
+          "planHash": "366d8c6127f9d3d9ceccd2a83c45abce1d59a3c69c1c5e03b80d1057200569a9",
+          "versionCount": 1,
+          "expectedCount": 4,
+          "actualCount": 4,
+          "missing": 0,
+          "extra": 0,
+          "changed": 0,
+          "blockers": [],
+          "clean": true
+        },
+        {
+          "ownerId": "6adb5e6917959d92712a70da",
+          "surveyId": "6adb5e6917959d92712a7100",
+          "planHash": "101cbbb846cd03e243a2a3ffee150b39678bdd9e24b38aaa3ed8e2aa57635814",
+          "versionCount": 1,
+          "expectedCount": 4,
+          "actualCount": 4,
+          "missing": 0,
+          "extra": 0,
+          "changed": 0,
+          "blockers": [],
+          "clean": true
+        },
+        {
+          "ownerId": "6adb5e6917959d92712a70db",
+          "surveyId": "6adb5e6917959d92712a710b",
+          "planHash": "d87a271bc8274b87e525f9ebbf9647dce32226144a3d7633426900386e94234f",
+          "versionCount": 2,
+          "expectedCount": 3,
+          "actualCount": 3,
+          "missing": 0,
+          "extra": 0,
+          "changed": 0,
+          "blockers": [],
+          "clean": true
+        },
+        {
+          "ownerId": "6adb5e6917959d92712a70da",
+          "surveyId": "6adb5e6917959d92712a7117",
+          "planHash": "ee74a16ec8f04de7e8c54ef4a7adbac677ca192198571c4a873c3a96f1a97089",
+          "versionCount": 1,
+          "expectedCount": 2,
+          "actualCount": 2,
+          "missing": 0,
+          "extra": 0,
+          "changed": 0,
+          "blockers": [],
+          "clean": true
+        },
+        {
+          "orphanSurveyUsages": 0,
+          "note": "孤立问卷记录只报告，不自动删除"
+        }
+      ]
+    },
+    {
+      "name": "clean",
+      "script": "seed:stage2",
+      "arguments": ["--clean", "--confirm-demo-data"],
+      "exitCode": 0,
+      "output": [
+        {
+          "removed": true,
+          "users": 3,
+          "surveys": 4,
+          "questions": 5,
+          "banks": 3
+        }
+      ]
+    },
+    {
+      "name": "idempotent-clean",
+      "script": "seed:stage2",
+      "arguments": ["--clean", "--confirm-demo-data"],
+      "exitCode": 0,
+      "output": [
+        {
+          "removed": false
+        }
+      ]
+    }
+  ]
+}

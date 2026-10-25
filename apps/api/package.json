@@ -11,10 +11,15 @@
     "test": "vitest run",
     "seed": "tsx src/scripts/seed.ts",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
+    "library:usage-benchmark": "tsx src/scripts/question-usage-benchmark.ts",
     "statistics:benchmark": "tsx src/scripts/statistics-benchmark.ts",
     "statistics:benchmark:clean": "tsx src/scripts/statistics-benchmark.ts --clean",
     "survey-list:benchmark": "tsx src/scripts/survey-list-benchmark.ts",
-    "survey-list:benchmark:clean": "tsx src/scripts/survey-list-benchmark.ts --clean"
+    "survey-list:benchmark:clean": "tsx src/scripts/survey-list-benchmark.ts --clean",
+    "library:statistics-benchmark": "tsx src/scripts/library-statistics-benchmark.ts",
+    "library:usage-audit": "tsx src/scripts/question-usage-audit.ts",
+    "seed:stage2": "tsx src/scripts/seed-stage2.ts",
+    "report:stage2-facts": "tsx src/scripts/stage2-report-facts.ts"
   },
   "dependencies": {
     "@survey/survey-logic": "0.1.0",

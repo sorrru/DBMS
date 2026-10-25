@@ -28,6 +28,13 @@ export type QuestionValidation =
       minValue: number | null;
       maxValue: number | null;
     };
+export interface QuestionSource {
+  libraryQuestionId: string;
+  questionVersionId: string;
+  contentRevision: number;
+  versionNumber: number;
+  optionSources: Array<{ optionId: string; sourceOptionId: string }>;
+}
 export interface SurveyQuestion {
   questionId: string;
   type: QuestionType;
@@ -36,6 +43,7 @@ export interface SurveyQuestion {
   validation: QuestionValidation;
   options: QuestionOption[];
   jumpRules: JumpRule[];
+  source?: QuestionSource;
 }
 export interface VersionForPublish {
   revision: number;
@@ -591,4 +599,39 @@ export function validateForPublish(
     errors,
     warnings,
   };
+}
+
+/** Library identity and survey-local questionId are deliberately separate. */
+export type LibraryDefinition = Pick<
+  SurveyQuestion,
+  "type" | "title" | "required" | "validation" | "options"
+>;
+export type LibraryFreezeReason = "adopted" | "copied" | "derived" | "restored";
+export interface LibraryVersionView {
+  questionVersionId: string;
+  libraryQuestionId: string;
+  versionNumber: number;
+  contentRevision: number;
+  frozenAt: string | null;
+  freezeReasons: LibraryFreezeReason[];
+  parentVersionId: string | null;
+  restoredFromVersionId: string | null;
+  parentUnavailable?: boolean;
+  restoredFromUnavailable?: boolean;
+  definition: LibraryDefinition;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface LibraryQuestionView {
+  libraryQuestionId: string;
+  type: QuestionType;
+  latestVersionId: string;
+  versionCount: number;
+  copiedFrom: {
+    libraryQuestionId: string;
+    questionVersionId: string;
+    contentRevision: number;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
 }

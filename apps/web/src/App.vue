@@ -21,7 +21,10 @@ import FillPage from "./FillPage.vue";
 import JumpRuleEditor from "./JumpRuleEditor.vue";
 import PublishedVersionView from "./PublishedVersionView.vue";
 import QuestionEditor from "./QuestionEditor.vue";
+import LibraryStatisticsPanel from "./LibraryStatisticsPanel.vue";
 import StatisticsView from "./StatisticsView.vue";
+import QuestionBanksView from "./QuestionBanksView.vue";
+import LibraryView from "./LibraryView.vue";
 import { fetchHealth, type HealthResponse } from "./health";
 import {
   parseFillRoute,
@@ -37,6 +40,7 @@ import {
   discardDraft,
   findSettingsDraft,
   getVersion,
+  getSurvey,
   listSurveys,
   listVersions,
   patchDraft,
@@ -66,6 +70,7 @@ const submitting = ref(false);
 const writing = ref(false);
 const questionsDirty = ref(false);
 const rulesDirty = ref(false);
+const libraryDirty = ref(false);
 const publishCheck = ref<PublishCheck>();
 const showingPreview = ref(false);
 const message = ref("");
@@ -73,7 +78,7 @@ const publishError = ref("");
 const surveys = ref<SurveySummary[]>([]);
 const nextCursor = ref<string | null>(null);
 const newSurveyName = ref("");
-const page = ref<"list" | "edit">("list");
+const page = ref<"list" | "edit" | "library" | "banks">("list");
 const selectedSurvey = ref<SurveySummary>();
 const selectedVersion = ref<SurveyVersion>();
 const versionHistory = ref<VersionHistorySummary[]>([]);
@@ -103,7 +108,11 @@ const changed = computed(() =>
 );
 const dirty = computed(() => Object.keys(changed.value).length > 0);
 const hasUnsaved = computed(
-  () => dirty.value || questionsDirty.value || rulesDirty.value,
+  () =>
+    dirty.value ||
+    questionsDirty.value ||
+    rulesDirty.value ||
+    libraryDirty.value,
 );
 const previewAvailable = computed(
   () =>
@@ -322,6 +331,25 @@ async function openEditor(survey: SurveySummary): Promise<void> {
   }
 }
 
+async function locateLibraryUsage(
+  usage: import("./library").LibraryOwnUsage,
+): Promise<void> {
+  if (hasUnsaved.value && !window.confirm("仍有未保存内容，确定离开吗？"))
+    return;
+  try {
+    const { survey } = await getSurvey(usage.surveyId);
+    await openEditor(survey);
+    if (selectedSurvey.value?.id !== survey.id) return;
+    await nextTick();
+    await openHistoryVersion(usage.surveyVersionId);
+    if (selectedVersion.value?.id === usage.surveyVersionId)
+      await scrollToEditorTarget(
+        `${selectedVersion.value.status === "draft" ? "" : "published-"}question-${usage.questionId}`,
+      );
+  } catch (error) {
+    showError(error);
+  }
+}
 function replaceSurvey(summary: SurveySummary): void {
   selectedSurvey.value = summary;
   surveys.value = surveys.value.map((item) =>
@@ -791,7 +819,17 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
       <header class="workspace-header">
         <div>
           <p class="eyebrow">{{ user.username }}</p>
-          <h2>{{ page === "list" ? "我的问卷" : "问卷编辑" }}</h2>
+          <h2>
+            {{
+              page === "list"
+                ? "我的问卷"
+                : page === "banks"
+                  ? "我的题库"
+                  : page === "library"
+                    ? "我的题目"
+                    : "问卷编辑"
+            }}
+          </h2>
         </div>
         <button class="secondary compact" type="button" @click="signOut">
           退出登录
@@ -800,6 +838,9 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
       <p v-if="message" class="error message-bar">{{ message }}</p>
 
       <template v-if="page === 'list'">
+        <button class="secondary" type="button" @click="page = 'library'">
+          管理常用题目与版本
+        </button>
         <form class="create-row" @submit.prevent="addSurvey">
           <input
             v-model="newSurveyName"
@@ -844,6 +885,40 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
         </button>
       </template>
 
+      <template v-else-if="page === 'banks'">
+        <button class="back-link" :disabled="writing" @click="page = 'library'">
+          ← 返回常用题目
+        </button>
+        <QuestionBanksView
+          :key="user.id"
+          @failure="showError"
+          @busy="writing = $event"
+        />
+      </template>
+      <template v-else-if="page === 'library'">
+        <button
+          class="back-link"
+          type="button"
+          :disabled="writing"
+          @click="backToList"
+        >
+          ← 返回问卷列表
+        </button>
+        <button
+          class="secondary"
+          :disabled="writing || libraryDirty"
+          @click="page = 'banks'"
+        >
+          管理题库分类
+        </button>
+        <LibraryView
+          :key="user.id"
+          @locate="locateLibraryUsage"
+          @failure="showError"
+          @dirty="libraryDirty = $event"
+          @busy="writing = $event"
+        />
+      </template>
       <template v-else-if="selectedSurvey && selectedVersion">
         <button class="back-link" type="button" @click="backToList">
           ← 返回问卷列表
@@ -1184,6 +1259,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
                 :survey-id="selectedSurvey.id"
                 :version="selectedVersion"
                 :busy="writing"
+                :other-unsaved="dirty || rulesDirty"
                 @updated="updateQuestionVersion"
                 @busy="writing = $event"
                 @dirty="questionsDirty = $event"
@@ -1267,6 +1343,20 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
                 v-if="selectedVersion.status === 'published'"
                 :version="selectedVersion"
               />
+              <template v-if="selectedVersion.status === 'published'">
+                <template
+                  v-for="question in selectedVersion.questions"
+                  :key="`cross-${question.questionId}`"
+                >
+                  <LibraryStatisticsPanel
+                    v-if="question.source"
+                    :library-question-id="question.source.libraryQuestionId"
+                    :question-title="question.title"
+                    :disabled="writing"
+                    @failure="showError"
+                  />
+                </template>
+              </template>
               <StatisticsView
                 v-if="selectedVersion.status === 'published'"
                 :survey-id="selectedSurvey.id"

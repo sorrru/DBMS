@@ -630,3 +630,292 @@ answers 必填、可以为空、最多 100 项；每项只允许 questionId 和 
 ## 当前实现边界
 
 登录 Cookie 有效期为 2 小时，不提供刷新或服务端撤销。限流保存在单进程内存中，重启会清空且多实例不共享；生产多实例部署应换成 Redis 等共享存储。账号、问卷、题目、跳转、发布检查、完整版本生命周期、公开填写会话、正式回答提交和按版本统计均已实现并完成当前里程碑验收。
+
+## 第二阶段里程碑 1 独立题目与版本
+
+本节为已经实现的独立题目管理接口。题目选入问卷、共享授权、题库成员和跨问卷统计不在本里程碑接口范围。题库身份名为 `libraryQuestionId`，具体内容版本为 `questionVersionId`；原问卷中的 `questionId` 继续表示问卷实例。
+
+### 认证和公共规则
+
+所有 `/api/questions` 接口要求现有登录 Cookie。写入继续要求正确 Origin 与 application/json，使用独立 `library-write:{userId}` 限流键，阈值沿用 `SURVEY_WRITE_RATE_LIMIT` 和 `SURVEY_WRITE_RATE_WINDOW_MS`。当前写入顺序为公共 Origin 与正文检查、认证、写限流、路径与正文解析、服务所有权和版本状态检查；无效请求也可能消耗写限额。
+
+资源 ID 仅接受 24 位小写十六进制字符串；合法但越权或不属于该题目的版本均返回 `404 LIBRARY_QUESTION_NOT_FOUND`。正文拒绝未知字段，客户端不能写 ownerId、冻结标记、来源或版本号。分页只允许 limit 和 cursor；limit 默认 20、范围 1–50，游标绑定当前用户和资源类型或具体题目，不可跨用户或跨题目使用。列表按身份 `_id` 降序，历史按 versionNumber 降序；分页不承诺并发编辑下的快照读取。
+
+### 接口索引
+
+| 方法  | 路径                                                                 | 作用                         | 成功状态 |
+| ----- | -------------------------------------------------------------------- | ---------------------------- | -------- |
+| POST  | `/api/questions`                                                     | 创建独立题目及 v1            | 201      |
+| GET   | `/api/questions`                                                     | 分页列出自己的题目和最新版本 | 200      |
+| GET   | `/api/questions/:libraryQuestionId`                                  | 身份、最新版本及修改状态     | 200      |
+| GET   | `/api/questions/:libraryQuestionId/versions`                         | 分页历史                     | 200      |
+| GET   | `/api/questions/:libraryQuestionId/versions/:questionVersionId`      | 指定版本与修改状态           | 200      |
+| PATCH | `/api/questions/:libraryQuestionId/versions/:questionVersionId`      | 原地修改未冻结版本           | 200      |
+| POST  | `/api/questions/:libraryQuestionId/versions`                         | 从选定版本派生新版本         | 201      |
+| POST  | `/api/questions/:libraryQuestionId/restore`                          | 恢复旧内容为新版本           | 201      |
+| POST  | `/api/questions/:libraryQuestionId/versions/:questionVersionId/copy` | 所有者另存独立新题           | 201      |
+
+### 题目定义与创建
+
+```json
+{
+  "type": "number",
+  "title": "你的年龄",
+  "required": true,
+  "validation": { "integerOnly": true, "minValue": 0, "maxValue": 120 },
+  "options": []
+}
+```
+
+创建支持 single、multiple、text、number 四种题型，复用第一阶段题目定义校验、长度、数字边界、默认值和选项规则。创建时 required 可省略，默认 false；其余定义字段必须提供。创建选项只有 text，服务端分配库内 optionId。题库定义不含 questionId 和 jumpRules。
+
+### 原地修改与派生
+
+原地修改请求含 `contentRevision`、`title`、`required`、`validation`、`options`，全部必填。派生请求增加 `sourceVersionId`，指向本题目任一历史版本，contentRevision 校验该来源版本当前内容。两者均不接受 type；同身份题型固定。
+
+已有选项可携带该来源定义中的 optionId，新增选项仅提供 text。借用另一版本中不在当前来源的 ID、跨题 ID 或重复 ID 均拒绝。新版本保留继承选项的 ID，新选项获得新 ID；另存新题则所有选项重新生成身份。删除的 ID 在库内注册集合保留，不回收；可通过从历史版本派生或恢复重新采用其原有选项。
+
+原地修改保持版本号并把 contentRevision 加一；冻结后返回 `409 LIBRARY_VERSION_FROZEN`。未冻结但 revision 不匹配返回 `409 LIBRARY_CONFLICT`。派生可基于冻结版本，冻结来源并增加新版本号，新版从 contentRevision 1 开始且初始未冻结。并发派生通过事务分配不同的连续版本号；不以最后写入覆盖内容。
+
+### 恢复和另存
+
+恢复请求：
+
+```json
+{
+  "restoredFromVersionId": "24位目标版本ID",
+  "sourceContentRevision": 1,
+  "baseVersionId": "24位当前最新版本ID",
+  "baseContentRevision": 1
+}
+```
+
+ID 示例文字须替换为真实 ID。base 必须仍是当前最新版本；source、base 都须属于该身份且 revision 匹配，否则返回 404 或 `LIBRARY_CONFLICT`。恢复复制 source 内容，生成新版本；parentVersionId 指向 base，restoredFromVersionId 指向 source，相关来源均冻结，旧版本不删除。
+
+另存请求只有 `{ "contentRevision": 1 }`。当前里程碑只允许所有者另存；生成新身份及 v1，copiedFrom 保存原身份、版本和 revision，源版本冻结。新身份不继承原题的统计归属或任何授权。接收者另存留待共享里程碑实现。
+
+### 响应与修改前检查
+
+创建、详情和全部写入返回 `{ question, version, modificationStatus }`。question 包含 libraryQuestionId、type、latestVersionId、versionCount、copiedFrom 与时间；version 包含 questionVersionId、libraryQuestionId、versionNumber、contentRevision、frozenAt、freezeReasons、parentVersionId、restoredFromVersionId、definition 与时间。时间为 UTC ISO 字符串。响应不返回 ownerId、内部序列字段或 MongoDB __v。
+
+modificationStatus 包含 canEditInPlace、ownUsageCount、otherUsageCount。计数是该版本当前使用实例数，不是问卷份数；只对源题所有者提供。本里程碑尚未接入选题，因此正常新题使用计数为 0；复制、派生或恢复也可使其冻结。冻结原因分别为 adopted、copied、derived、restored；冻结永久保留，不依据当前引用数量解冻。
+
+列表返回 `{ items: [{ question, version }], nextCursor }`；历史返回 `{ items: [version], nextCursor }`。身份列表一页用一次批量查询读取最新版本，不逐行关联。页面在修改前展示使用与冻结情况；服务端写入时重新检查，不能把前次 GET 当成有效修改授权。
+
+### 新增稳定错误码
+
+| HTTP | code                       | 含义                                           |
+| ---- | -------------------------- | ---------------------------------------------- |
+| 400  | VALIDATION_ERROR           | 参数或题目定义不合法，details.path 定位字段    |
+| 404  | LIBRARY_QUESTION_NOT_FOUND | 题目或版本不存在、越权或不属于该身份           |
+| 409  | LIBRARY_VERSION_FROZEN     | 禁止原地覆盖已冻结版本，先于内容 revision 检查 |
+| 409  | LIBRARY_CONFLICT           | 内容 revision 过期或恢复基线已变化             |
+
+认证、Origin、JSON、限流和内部错误继续使用原有错误码。
+
+## 第二阶段里程碑 2 常用题目接入问卷草稿
+
+下列接口已实现，均复用原问卷写入认证、Origin、JSON、每用户写限流与 revision 乐观锁。当前只可使用自己拥有的常用题目，用户间共享在里程碑 3 接入。
+
+| 方法 | 路径                                                                               | 作用                           | 成功状态 |
+| ---- | ---------------------------------------------------------------------------------- | ------------------------------ | -------- |
+| POST | `/api/surveys/:surveyId/versions/:versionId/library-questions`                     | 从常用题目选入一个实例         | 201      |
+| PUT  | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId/library-source`  | 显式换用同一常用题目的其他版本 | 200      |
+| POST | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId/detach-library`  | 转为本地题目                   | 200      |
+| POST | `/api/surveys/:surveyId/versions/:versionId/questions/:questionId/save-to-library` | 保存本地题目为独立常用题目     | 201      |
+
+### 选入与换版本请求
+
+```json
+{
+  "revision": 3,
+  "libraryQuestionId": "24位题目身份ID",
+  "questionVersionId": "24位题目版本ID",
+  "contentRevision": 1
+}
+```
+
+ID 示例须换成真实 24 位小写十六进制 ID。revision 是目标问卷草稿 revision，contentRevision 是所选题目库版本的内容修订。缺少、类型错误、未知字段或伪造 source、选项映射等一律 400；版本不属于该身份或不是当前用户的资源返回 404。全部接口只修改草稿，发布版本始终返回 VERSION_NOT_EDITABLE。
+
+选入先检查草稿所有权、状态、revision 及 100 题上限，再读取获授权来源并校验 contentRevision。在同一事务内永久冻结题目库版本，生成新的问卷实例 ID 和选项实例 ID，保存完整定义、来源映射、使用记录，并更新草稿 revision 及问卷修改时间。第一次选入使目标结构 schemaVersion 升为 2。同一来源可在同一问卷多次选入，各实例独立。
+
+换版本只接受当前实例的同一 libraryQuestionId 下的其他版本。当前已使用的版本不允许重复换入。有任何入站跳转返回 QUESTION_REFERENCED 并列出 references；当前题存在出站规则返回 QUESTION_HAS_JUMP_RULES。须先解决引用并清空出站规则，接口才会在原位置生成新实例，移除旧实例和旧使用记录；不猜测选项对应，也不继承跳转。换版本不改变已发布快照或回答。
+
+成功返回 `{ version, questionId, surveyUpdatedAt }`，questionId 为新实例 ID。草稿 revision 递增，返回完整最新草稿。
+
+### 保存为常用题目与解除来源
+
+两接口请求都只有 `{ "revision": 3 }`。
+
+save-to-library 仅接受本地题目，把已保存的标题、题型、必答、选项及校验保存成一个新身份及 v1；选项生成新的库内 ID，跳转不进入题目库。当前问卷实例保持本地，不自动关联来源，不回溯认领旧回答，新库版本初始可修改。该操作也以问卷 revision 条件写入来防止读取定义与并发修改之间的竞态，成功会增加草稿 revision；题目定义、顺序及跳转保持原样。返回 `{ version, surveyUpdatedAt, libraryQuestionId, questionVersionId }`。
+
+detach-library 仅接受带来源实例，删除该实例 source 及使用记录；保留原 questionId、选项实例 ID、题目定义和所有跳转，因此入站引用仍有效。返回 `{ version, surveyUpdatedAt }`。转换后可通过原题目 PATCH 编辑定义。源题目版本永久冻结，最后一个引用移除也不解冻。
+
+直接通过原 PATCH 修改带来源的定义返回 LIBRARY_SNAPSHOT_READ_ONLY，即使提交相同内容也必须先显式转换；客户端提交 source:null 不能绕过白名单。带来源的题目排序和跳转仍用原接口，服务端保留来源。
+
+### 来源及使用记录
+
+每个带来源的问卷实例含 source：libraryQuestionId、questionVersionId、contentRevision、versionNumber，以及 `{ optionId, sourceOptionId }` 数组。前者 optionId 是本问卷实例选项，后者是题目库内跨版本稳定的选项 ID。来源由服务端生成，调用者不能自行填写。来源 ID 以规范的 24 位字符串保存于快照，共享包直接使用；题目资源 `_id` 和 question_usages 的引用字段仍为 ObjectId，投影层显式转换。
+
+只有新来源结构才提升 schemaVersion；原有本地题目及历史发布快照不批量升级。转本地后不把 schemaVersion 2 降回 1。公开填写仍使用安全字段投影，不返回来源、授权或内部身份元数据。
+
+question_usages 与业务写入共用 session：
+
+- 选入插入一条；换版本删除旧实例并插入新实例；解除来源及删除题目删除对应记录。
+- 排序或跳转只保留原记录，不增加重复使用。
+- 发布把对应记录标为 published；复制下一草稿为新 surveyVersionId 复制来源及记录。
+- 放弃后续草稿删除该版记录，历史发布版记录保留。
+- 保存本地题目入库不创建使用记录。
+
+任何事务失败都回滚来源冻结、新资源、使用记录和草稿写入。复制下一草稿使用已经固定的旧快照，不读取题目库最新内容。引用明细及跨问卷回答聚合属于后续里程碑，本节不宣称已提供这些接口。
+
+### 新增错误码
+
+| HTTP | code                       | 含义                                                           |
+| ---- | -------------------------- | -------------------------------------------------------------- |
+| 409  | LIBRARY_SNAPSHOT_READ_ONLY | 带来源实例禁止直接修改定义，或已经来自常用题目，须使用显式流程 |
+| 409  | QUESTION_HAS_JUMP_RULES    | 换版本前须清空当前实例出站规则                                 |
+
+其余沿用 QUESTION_REFERENCED、QUESTION_LIMIT_REACHED、DRAFT_CONFLICT、VERSION_NOT_EDITABLE、LIBRARY_CONFLICT、LIBRARY_QUESTION_NOT_FOUND 及原通用错误码。
+
+## 第二阶段里程碑 3 版本共享与分级引用查询
+
+当前支持按具体版本向已注册用户批量共享。共享授予读取、选入自己草稿和另存新题的权限，不授予原题编辑、派生、恢复、转授、授权管理或他人回答访问权。
+
+### 接口
+
+| 方法   | 路径                                                | 功能                                                 | 成功状态 |
+| ------ | --------------------------------------------------- | ---------------------------------------------------- | -------- |
+| GET    | `/api/questions/shared`                             | 分页列出共享给当前用户的题目身份，展示最新获授权版本 | 200      |
+| POST   | `/api/questions/:libraryQuestionId/shares`          | 批量授予指定版本                                     | 202      |
+| GET    | `/api/questions/:libraryQuestionId/shares`          | 所有者分页管理已建立授权                             | 200      |
+| DELETE | `/api/questions/:libraryQuestionId/shares/:shareId` | 所有者撤销一条用户与版本授权                         | 204      |
+| GET    | `/api/questions/:libraryQuestionId/usages`          | 当前用户自己问卷中的引用明细                         | 200      |
+| GET    | `/api/questions/:libraryQuestionId/usages/others`   | 仅源题所有者可读的他人使用汇总                       | 200      |
+
+全部要求原登录 Cookie。共享给我、授权及使用列表沿用 limit 1–50、默认 20 和不透明绑定游标；不同用户、资源、列表类型的游标不能混用。自己题目列表仍只返回自己的题，接收题目使用单独 shared 列表，问卷选题器提供两个入口。
+
+### 批量授权与撤销
+
+```json
+{
+  "usernames": ["student_a", "student_b"],
+  "questionVersionIds": ["24位版本ID"]
+}
+```
+
+两个数组各 1–50 项，用户名沿用 3–20 位 ASCII 字母、数字或下划线规则，trim、小写规范化并去重；版本 ID 也去重。所有版本必须属于当前所有者的该题目身份，任一版本无效则整个授权事务失败。每批最多 2,500 个用户与版本组合，不接受未知字段。不会给自己建立共享记录。
+
+对有效请求中的已有账号、不存在账号和已授权账号统一返回 `202 { "accepted": true }`，不返回命中数量或逐项失败名单；所有者可从授权列表管理实际建立的记录。按用户每 15 分钟 20 次、来源 IP 每 15 分钟 100 次限制授权和撤销请求，并继续执行原每用户 library-write 限流。统一受理不能消除授权管理带来的账号发现能力，属于需求决策已接受的边界，不声称完全防账号枚举。
+
+授权列表项仅包含 shareId、username 和 versionNumber；shareId 用于撤销，不返回 recipientId。撤销请求体为 `{}`；合法但已不存在的 shareId 幂等返回 204，非所有者不能管理授权。新增题目版本或恢复版本不会自动共享，所有者须再次明确选择。
+
+`question_shares` 每个用户与版本一条记录，唯一索引为 `(questionVersionId, recipientId)`，另有接收者与身份、身份与授权 ID 的列表索引。grant/revoke 在事务中更新题目身份 revision 以串行化同身份授权管理。仅共享不触发冻结；首次选入或另存才冻结并固定内容修订。
+
+### 已有详情 历史和另存接口的权限扩展
+
+题目详情响应新增 `access: owner | shared`。所有者仍有完整历史与原有写权限。接收者的详情、历史和 shared 列表只返回获授权版本；身份的 latestVersionId 和 versionCount 限定在获授权范围，copiedFrom 隐藏，不泄露私有最新版本指针、总版本数或未共享定义。
+
+未授权父版本和恢复来源不返回 ID，而是把对应指针置 null 并返回 parentUnavailable 或 restoredFromUnavailable；允许展示“部分来源不可访问”。接收者 modificationStatus.canEditInPlace 始终 false，otherUsageCount 为 0，只统计自己的使用。
+
+接收者可通过原 copy 接口另存为自己拥有的新身份，copiedFrom 记录当时获授权来源，库内选项重新分配 ID，新身份统计和权限独立。不能通过原 PATCH、新版本、恢复或 shares 接口修改或转授原题。普通授权读请求按检查时权限处理，撤销不追溯取消已经发出的读取响应；新增选入和另存执行下述更严格事务边界。
+
+### 撤销与写入竞争
+
+选入或另存共享版本时，同一事务内对精确的 `(libraryQuestionId, questionVersionId, recipientId)` 授权记录执行 accessRevision 条件写入，再读取版本、冻结及写业务数据；撤销删除同一授权记录。因此：已获得授权写锁并成功提交的使用保留，撤销随后生效；撤销先提交则后续使用返回 404，并且不留下冻结、使用或新身份。
+
+事务失败时授权 accessRevision 的变化也回滚。撤销后不能再从库读取、选入或另存该版本，但已有草稿和发布快照继续有效，可发布及复制下一问卷草稿，原回答不删除。快照延续不恢复题目库权限，所有者仍能看到留存的脱敏使用事实。
+
+### 引用返回字段与隐私
+
+自己引用项返回 surveyId、surveyVersionId、questionId、internalName、surveyVersionNumber、questionVersionNumber、status，支持打开定位。先按当前用户过滤使用记录，再核对问卷所有者与实际快照来源，避免把冗余投影当成最终授权依据。
+
+他人汇总项严格只有 username、versionNumber、status、count 四字段，按用户、题目版本与草稿或发布状态分组。count 是实例次数，同一问卷不同版本及同版重复实例分别计入；不返回他人问卷名称、ID、链接、题目位置、回答或账号 ID。分页游标采用独立派生密钥的 AES-256-GCM 加密，绑定当前所有者及题目，避免分页键暴露内部用户 ID。其他管理列表继续使用绑定范围的签名游标。
+
+引用管理不扩展回答权限，原问卷统计接口仍只允许问卷所有者读取。跨问卷回答聚合已在里程碑 5 实现，仍限当前用户自己的发布来源，详见后文对应接口。
+
+### 当前版本优先界面修订
+
+根据人工反馈，管理页和问卷选题器默认展示当前可访问版本，历史按需展开。共享界面直接提交当前版本 ID，不再显示多版本勾选；历史管理详情只提供查看和恢复为最新版本，不提供原地修改或分享按钮。现有显式版本接口、授权记录及权限检查保留，以兼容旧调用和后续固定版本场景；冻结和恢复事务语义不变。
+
+## 第二阶段 里程碑 4 私有题库分类
+
+所有接口位于 `/api/question-banks`，需要登录，写操作继续执行 Origin、JSON 与 library-write 限流。其他人的题库和不存在题库统一 404 BANK_NOT_FOUND。题库不会赋予题目访问权，不提供题库转授功能。
+
+| 方法   | 路径                     | 请求与结果                                              |
+| ------ | ------------------------ | ------------------------------------------------------- |
+| GET    | `/`                      | limit 1–50（默认 20）、cursor；返回 items 与 nextCursor |
+| POST   | `/`                      | `{name}`，trim 后 1–80 字；201 返回题库                 |
+| PATCH  | `/:bankId`               | `{name,revision}`；200 返回更新题库                     |
+| DELETE | `/:bankId`               | `{revision}`；204，只移除分类与成员                     |
+| GET    | `/:bankId/items`         | 同上分页；返回 bank、items、nextCursor                  |
+| POST   | `/:bankId/items`         | 成员策略请求，201 `{accepted:true}`                     |
+| PUT    | `/:bankId/items/:itemId` | 成员策略请求加 revision；200 `{accepted:true}`          |
+| DELETE | `/:bankId/items/:itemId` | `{revision}`；204，只移出分类                           |
+
+题库返回 bankId、name、revision、createdAt、updatedAt。改名递增题库 revision；成员操作维护内部 membershipRevision，与题库删除串行化，不令其他成员的修订失效。删除需当前题库 revision。无成员总数字段，列表采用独立 ownerId 与范围绑定的签名游标。
+
+成员策略请求包含 libraryQuestionId、versionPolicy 和 questionVersionId。latest 的 questionVersionId 省略或 null；pinned 必须传同身份且有权访问的版本 ID。PUT 额外要求正整数 revision，且不能更换成员所属题目身份。重复加入、陈旧修订或并发更新失败返回 409 BANK_CONFLICT；未知字段、非法策略、ID 或修订返回 400 VALIDATION_ERROR。不可访问题目/版本返回 404 LIBRARY_QUESTION_NOT_FOUND，事务不留下成员。
+
+成员返回 itemId、libraryQuestionId、versionPolicy、questionVersionId、revision、available、version。latest 动态解析所有者最新版本，或接收者最高版本号的获授权版本；不跟随未获授权的私有新版本。pinned 固定版本身份，若该版本被撤销授权则 available=false、version=null，不回退到其他版本。仍可移出失效成员。可用版本沿用题目服务的祖先脱敏，不暴露未授权来源；普通读取沿用检查时权限，在途读不追溯取消。
+
+固定版本不等于冻结内容：未使用版本仍可原地修改，界面明确提示。加入、移出、修改策略及删除题库均不冻结版本、不创建或删除 usages、不改问卷快照和回答。实际选入问卷仍走原采用事务，重新验证精确版本权限和 contentRevision 并冻结。成员写入对精确共享授权作条件写入，与撤销争用；成员、父题库计数及授权修订统一回滚。
+
+前端入口为“管理常用题目与版本 → 管理题库分类”；成员更新先预览差异，可明确选择历史版本固定或切换跟随最新。切换跟随最新会同步刷新最新可用预览。问卷选题器的“按题库选择”采用解析后的具体版本，固定旧版本不会被静默替换成当前版本。已有问卷需要在编辑器中单独换版本。
+
+## 第二阶段 里程碑 5 跨问卷单题统计
+
+统计入口为 `/api/questions/:libraryQuestionId/statistics`。需要登录；查询统一执行 statistics 用户限流和 maxTimeMS，响应带 Cache-Control: no-store。POST 同样需要受信 Origin 和 application/json。该接口不授予任何他人问卷回答权限。
+
+### GET /sources
+
+不接受查询参数，返回 libraryQuestionId、scope=`own-published-surveys`、sourceCount、versions。每个版本项为 questionVersionId、versionNumber、definition、sourceCount、surveyCount；定义来自当前用户真实发布快照，选项 ID 归一为题库源 ID。用于展示统计范围和合并前差异，不返回他人使用情况。
+
+只发现当前用户的已发布引用，包含历史发布版本，排除草稿。先从 question_usages 按 libraryQuestionId/ownerId/status 的索引查询，再核对 surveys.ownerId、已发布 survey_versions、实例来源和版本 ID。usage 只是候选，不作最终授权。旧本地题无来源时不按标题推断同题；另存为新题目的身份也不混入。
+
+有自己真实发布来源时，即使共享已撤销，仍可统计自己快照中该题的回答；无来源则要求题目所有权或现存共享，否则统一 404 LIBRARY_QUESTION_NOT_FOUND。有访问权但无来源返回空 versions。每个身份最多解析 1000 条发布引用，超出明确返回 413 PAYLOAD_TOO_LARGE，不静默截断。不声称能从缺失 usages 自动恢复来源；最终回归里程碑另提供核对修复工具。
+
+### POST /query
+
+```json
+{
+  "questionVersionIds": ["24位题目版本ID"],
+  "merge": false,
+  "confirmMerge": false,
+  "boundaries": [0, 18, 30, 45, 60, 120],
+  "limit": 20
+}
+```
+
+questionVersionIds 必填 1–50 项，去重并排序，必须全部出现在自己的真实发布来源中。merge 默认 false；合并多个版本时必须传 confirmMerge=true。界面先展示标题、必答、选项和校验差异并要求勾选确认，不能只因题型相同自动认为语义相同。拒绝跨题目身份、未知版本或题型不一致。未知字段拒绝。
+
+boundaries 为 2–31 个严格递增的有限数字，默认如示例；数字桶左闭右开，并额外返回低于首边界、达到末边界的桶，总桶数为边界数加一。没有有效数字时 count/sum 为 0，average/minimum/maximum 为 null；数值 0 是有效回答。非数字统计仍接收合法 boundaries，但不生成数字桶。
+
+返回 libraryQuestionId、scope、countingUnit=`question-instance`、merged、versions（所选定义与来源量）、groups、text、generatedAt。默认每个题目版本一个 group，merge 时为 merged 组。各组字段如下：
+
+| 字段                                         | 含义                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| questionVersionIds、sourceCount、surveyCount | 组成版本、实例数量、不同问卷数量                                   |
+| opportunityCount                             | 对每份相关提交，每个相关题目实例各计一次机会                       |
+| reachedCount、answeredCount                  | 路径到达实例次数、实际存储的有效回答实例次数                       |
+| notReachedCount                              | opportunityCount − reachedCount                                    |
+| unansweredReachedCount                       | reachedCount − answeredCount                                       |
+| reachRate、answerRate                        | reached/opportunity、answered/reached；分母 0 返回 0               |
+| options                                      | 源 optionId、跨版本 labels、count、percentageOfAnswered            |
+| number                                       | 数字 count、sum、average、minimum、maximum、buckets；非数字为 null |
+
+按实例而非人数统计；同一提交重复使用同题、不同问卷或不同发布版本的提交均分别计入。仅成功入库的提交参与，重复提交是否允许仍由原填写规则控制；本接口不另外按账号去重。选择题按 source.optionSources 归并到稳定源 optionId，文字相同但 ID 不同不会合并。多选比例的分母为已答实例数，合计可超过 100%。同一源选项改名时 labels 保留各版本文字。
+
+文本题返回 text.items 与 nextCursor；每项严格只有 value、submittedDate（UTC 日期）、questionVersionId。包括实名问卷也不返回账号、响应 ID 或精确时间。每页 limit 为 1–50（默认 20），后续 POST 在相同条件下带 cursor。游标 AES-GCM 加密并绑定当前用户、身份、选中版本、合并模式、桶边界、limit 与真实来源集合；条件或来源改变时返回 400，须重新查询。非文本不接受 cursor。
+
+每次查询在同一 snapshot 只读事务中解析来源并按最多 50 个实例分批聚合。responses 首先按有权 surveyVersionId 作索引过滤，再为该版本的精确实例提取答案和选项映射，不在回答管道中执行 lookup。同一问卷版本中不属于本题的实例不计入。文本每批取 limit+1 后全局按 submittedAt、响应 ID、来源键降序合并，以简单二进制字符串比较保持与 MongoDB 一致；下一页重新建立一致读视图，不承诺跨请求固定快照。
+
+超时或一致性不变量失败返回 503 STATISTICS_UNAVAILABLE，不返回部分统计。对数值桶、回答数、到达数、单选总数和选项映射核对；来源定义异常同样拒绝统计。实际执行计划见 `experiments/STAGE2_STATISTICS_EXPLAIN.json`，复现命令为 `npm run library:statistics-benchmark --workspace @survey/api`，该命令仅使用固定专用本地实验库，结束清理实验集合。
+
+## 第二阶段维护工具（不通过 HTTP 暴露）
+
+里程碑 6 增加 `library:usage-audit` 和 `seed:stage2` 脚本，只允许本地非生产环境。完整参数、限制及修改范围见 [STAGE2_OPERATIONS.md](STAGE2_OPERATIONS.md)。
+
+审计默认只读，全量只报告每问卷差异及孤立数量。修复必须指定 ownerId、surveyId、--apply 和检查生成的 planHash，只替换该问卷的使用投影；更新父问卷 updatedAt 与正常修改串行化，不修改版本快照或回答。过期计划、损坏来源及未冻结版本拒绝修复，不支持全库自动修复。
+
+第二阶段演示由 stage2_demo_manifest 记录演示账号 ID 与 building/ready 状态，初次生成需要 SEED_USER_PASSWORD。默认重复运行只验证；reset/clean 需额外 --confirm-demo-data，且有非演示账号依赖时拒绝清理。不会接管已有同名账号或变更原 seed 账号。原 seed 工具新增第二阶段数据预检，避免清理留下悬空的题目、题库和来源关系。

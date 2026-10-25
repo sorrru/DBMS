@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { parseLibrarySelection } from "./library-validation.js";
 import { isValidObjectId } from "mongoose";
 import { requireCurrentUser } from "../auth/current-user.js";
 import type { AuthDependencies } from "../auth/router.js";
@@ -261,5 +262,74 @@ export function createSurveyRouter(deps: AuthDependencies): Router {
       );
     },
   );
+  router.post(
+    "/:surveyId/versions/:versionId/library-questions",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId"),
+        versionId = validId(request.params.versionId!, "versionId"),
+        input = parseLibrarySelection(request.body);
+      consumeWrite(user._id.toString());
+      response
+        .status(201)
+        .json(
+          await service.addLibraryQuestion(
+            user._id,
+            surveyId,
+            versionId,
+            input,
+          ),
+        );
+    },
+  );
+  router.put(
+    "/:surveyId/versions/:versionId/questions/:questionId/library-source",
+    async (request, response) => {
+      const user = await requireCurrentUser(request, deps.tokens);
+      const surveyId = validId(request.params.surveyId!, "surveyId"),
+        versionId = validId(request.params.versionId!, "versionId"),
+        questionId = validQuestionId(request.params.questionId!),
+        input = parseLibrarySelection(request.body);
+      consumeWrite(user._id.toString());
+      response.json(
+        await service.addLibraryQuestion(
+          user._id,
+          surveyId,
+          versionId,
+          input,
+          questionId,
+        ),
+      );
+    },
+  );
+  for (const action of ["detach-library", "save-to-library"] as const)
+    router.post(
+      `/:surveyId/versions/:versionId/questions/:questionId/${action}`,
+      async (request, response) => {
+        const user = await requireCurrentUser(request, deps.tokens);
+        const surveyId = validId(request.params.surveyId!, "surveyId"),
+          versionId = validId(request.params.versionId!, "versionId"),
+          questionId = validQuestionId(request.params.questionId!),
+          revision = parseRevision(request.body);
+        consumeWrite(user._id.toString());
+        const result =
+          action === "detach-library"
+            ? await service.detachLibraryQuestion(
+                user._id,
+                surveyId,
+                versionId,
+                questionId,
+                revision,
+              )
+            : await service.saveQuestionToLibrary(
+                user._id,
+                surveyId,
+                versionId,
+                questionId,
+                revision,
+              );
+        response.status(action === "save-to-library" ? 201 : 200).json(result);
+      },
+    );
   return router;
 }

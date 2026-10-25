@@ -1,0 +1,1050 @@
+{
+  "generatedAt": "2026-10-25T07:34:36.252Z",
+  "nodeVersion": "v24.22.0",
+  "mongodbVersion": "8.0.34",
+  "database": "survey_stage2_report_test",
+  "collectionCount": 13,
+  "businessCollectionCount": 12,
+  "declaredIndexCount": 23,
+  "actualIndexCount": 36,
+  "collections": [
+    {
+      "collection": "users",
+      "documentCount": 0,
+      "fields": {
+        "username": {
+          "type": "String"
+        },
+        "usernameNormalized": {
+          "type": "String"
+        },
+        "passwordHash": {
+          "type": "String"
+        },
+        "registeredAt": {
+          "type": "Date"
+        },
+        "_id": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "usernameNormalized": 1
+          },
+          "unique": true
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "usernameNormalized": 1
+          },
+          "name": "usernameNormalized_1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "collection": "surveys",
+      "documentCount": 0,
+      "fields": {
+        "ownerId": {
+          "type": "ObjectId"
+        },
+        "publicId": {
+          "type": "String"
+        },
+        "internalName": {
+          "type": "String"
+        },
+        "manualStatus": {
+          "type": "String"
+        },
+        "currentVersionId": {
+          "type": "ObjectId"
+        },
+        "draftVersionId": {
+          "type": "ObjectId"
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "publicId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "ownerId": 1,
+            "updatedAt": -1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "publicId": 1
+          },
+          "name": "publicId_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "ownerId": 1,
+            "updatedAt": -1,
+            "_id": -1
+          },
+          "name": "ownerId_1_updatedAt_-1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "survey_versions",
+      "documentCount": 0,
+      "fields": {
+        "surveyId": {
+          "type": "ObjectId"
+        },
+        "versionNumber": {
+          "type": "Number"
+        },
+        "status": {
+          "type": "String"
+        },
+        "revision": {
+          "type": "Number"
+        },
+        "title": {
+          "type": "String"
+        },
+        "description": {
+          "type": "String"
+        },
+        "identityMode": {
+          "type": "String"
+        },
+        "allowMultipleSubmissions": {
+          "type": "Boolean"
+        },
+        "deadline": {
+          "type": "Date"
+        },
+        "sessionDurationMinutes": {
+          "type": "Number"
+        },
+        "questions": {
+          "type": "Array",
+          "fields": {
+            "questionId": {
+              "type": "String"
+            },
+            "type": {
+              "type": "String"
+            },
+            "title": {
+              "type": "String"
+            },
+            "required": {
+              "type": "Boolean"
+            },
+            "validation": {
+              "type": "Mixed"
+            },
+            "options": {
+              "type": "Array",
+              "fields": {
+                "optionId": {
+                  "type": "String"
+                },
+                "text": {
+                  "type": "String"
+                }
+              }
+            },
+            "jumpRules": {
+              "type": "Array",
+              "fields": {
+                "ruleId": {
+                  "type": "String"
+                },
+                "operator": {
+                  "type": "String"
+                },
+                "value": {
+                  "type": "Mixed"
+                },
+                "targetQuestionId": {
+                  "type": "String"
+                }
+              }
+            },
+            "source": {
+              "type": "Embedded",
+              "fields": {
+                "libraryQuestionId": {
+                  "type": "String"
+                },
+                "questionVersionId": {
+                  "type": "String"
+                },
+                "contentRevision": {
+                  "type": "Number"
+                },
+                "versionNumber": {
+                  "type": "Number"
+                },
+                "optionSources": {
+                  "type": "Array",
+                  "fields": {
+                    "optionId": {
+                      "type": "String"
+                    },
+                    "sourceOptionId": {
+                      "type": "String"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "schemaVersion": {
+          "type": "Number"
+        },
+        "publishedAt": {
+          "type": "Date"
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "surveyId": 1,
+            "versionNumber": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "surveyId": 1,
+            "status": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "status": "draft"
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyId": 1,
+            "versionNumber": 1
+          },
+          "name": "surveyId_1_versionNumber_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyId": 1,
+            "status": 1
+          },
+          "name": "surveyId_1_status_1",
+          "unique": true,
+          "partialFilterExpression": {
+            "status": "draft"
+          }
+        }
+      ]
+    },
+    {
+      "collection": "fill_sessions",
+      "documentCount": 0,
+      "fields": {
+        "surveyId": {
+          "type": "ObjectId"
+        },
+        "surveyVersionId": {
+          "type": "ObjectId"
+        },
+        "identityMode": {
+          "type": "String"
+        },
+        "ownerKey": {
+          "type": "String"
+        },
+        "userId": {
+          "type": "ObjectId"
+        },
+        "sessionTokenHash": {
+          "type": "String"
+        },
+        "status": {
+          "type": "String"
+        },
+        "activeSlot": {
+          "type": "Number"
+        },
+        "startedAt": {
+          "type": "Date"
+        },
+        "expiresAt": {
+          "type": "Date"
+        },
+        "purgeAt": {
+          "type": "Date"
+        },
+        "submittedAt": {
+          "type": "Date"
+        },
+        "_id": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "sessionTokenHash": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "surveyId": 1,
+            "ownerKey": 1,
+            "activeSlot": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "status": "active"
+          }
+        },
+        {
+          "key": {
+            "surveyId": 1,
+            "ownerKey": 1,
+            "status": 1,
+            "expiresAt": 1
+          }
+        },
+        {
+          "key": {
+            "purgeAt": 1
+          },
+          "expireAfterSeconds": 0
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "sessionTokenHash": 1
+          },
+          "name": "sessionTokenHash_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyId": 1,
+            "ownerKey": 1,
+            "activeSlot": 1
+          },
+          "name": "surveyId_1_ownerKey_1_activeSlot_1",
+          "unique": true,
+          "partialFilterExpression": {
+            "status": "active"
+          }
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyId": 1,
+            "ownerKey": 1,
+            "status": 1,
+            "expiresAt": 1
+          },
+          "name": "surveyId_1_ownerKey_1_status_1_expiresAt_1"
+        },
+        {
+          "v": 2,
+          "key": {
+            "purgeAt": 1
+          },
+          "name": "purgeAt_1",
+          "expireAfterSeconds": 0
+        }
+      ]
+    },
+    {
+      "collection": "responses",
+      "documentCount": 0,
+      "fields": {
+        "surveyId": {
+          "type": "ObjectId"
+        },
+        "surveyVersionId": {
+          "type": "ObjectId"
+        },
+        "fillSessionId": {
+          "type": "ObjectId"
+        },
+        "ownerKey": {
+          "type": "String"
+        },
+        "dedupKey": {
+          "type": "String"
+        },
+        "respondentId": {
+          "type": "ObjectId"
+        },
+        "questionPath": {
+          "type": "Array"
+        },
+        "ignoredQuestionIds": {
+          "type": "Array"
+        },
+        "answers": {
+          "type": "Array",
+          "fields": {
+            "questionId": {
+              "type": "String"
+            },
+            "value": {
+              "type": "Mixed"
+            }
+          }
+        },
+        "submittedAt": {
+          "type": "Date"
+        },
+        "_id": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "fillSessionId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "surveyVersionId": 1,
+            "dedupKey": 1
+          },
+          "unique": true,
+          "partialFilterExpression": {
+            "dedupKey": {
+              "$type": "string"
+            }
+          }
+        },
+        {
+          "key": {
+            "surveyVersionId": 1,
+            "submittedAt": -1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "fillSessionId": 1
+          },
+          "name": "fillSessionId_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyVersionId": 1,
+            "dedupKey": 1
+          },
+          "name": "surveyVersionId_1_dedupKey_1",
+          "unique": true,
+          "partialFilterExpression": {
+            "dedupKey": {
+              "$type": "string"
+            }
+          }
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyVersionId": 1,
+            "submittedAt": -1,
+            "_id": -1
+          },
+          "name": "surveyVersionId_1_submittedAt_-1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "questions",
+      "documentCount": 0,
+      "fields": {
+        "ownerId": {
+          "type": "ObjectId"
+        },
+        "type": {
+          "type": "String"
+        },
+        "latestVersionId": {
+          "type": "ObjectId"
+        },
+        "nextVersionNumber": {
+          "type": "Number"
+        },
+        "revision": {
+          "type": "Number"
+        },
+        "copiedFrom": {
+          "type": "Embedded",
+          "fields": {
+            "libraryQuestionId": {
+              "type": "ObjectId"
+            },
+            "questionVersionId": {
+              "type": "ObjectId"
+            },
+            "contentRevision": {
+              "type": "Number"
+            }
+          }
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "ownerId": 1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "ownerId": 1,
+            "_id": -1
+          },
+          "name": "ownerId_1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "question_versions",
+      "documentCount": 0,
+      "fields": {
+        "libraryQuestionId": {
+          "type": "ObjectId"
+        },
+        "versionNumber": {
+          "type": "Number"
+        },
+        "contentRevision": {
+          "type": "Number"
+        },
+        "frozenAt": {
+          "type": "Date"
+        },
+        "freezeReasons": {
+          "type": "Array"
+        },
+        "parentVersionId": {
+          "type": "ObjectId"
+        },
+        "restoredFromVersionId": {
+          "type": "ObjectId"
+        },
+        "definition": {
+          "type": "Embedded",
+          "fields": {
+            "type": {
+              "type": "String"
+            },
+            "title": {
+              "type": "String"
+            },
+            "required": {
+              "type": "Boolean"
+            },
+            "validation": {
+              "type": "Mixed"
+            },
+            "options": {
+              "type": "Array",
+              "fields": {
+                "optionId": {
+                  "type": "String"
+                },
+                "text": {
+                  "type": "String"
+                }
+              }
+            }
+          }
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "libraryQuestionId": 1,
+            "versionNumber": -1
+          },
+          "unique": true
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "libraryQuestionId": 1,
+            "versionNumber": -1
+          },
+          "name": "libraryQuestionId_1_versionNumber_-1",
+          "unique": true
+        }
+      ]
+    },
+    {
+      "collection": "library_option_keys",
+      "documentCount": 0,
+      "fields": {
+        "_id": {
+          "type": "String"
+        },
+        "libraryQuestionId": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        }
+      ]
+    },
+    {
+      "collection": "question_usages",
+      "documentCount": 0,
+      "fields": {
+        "ownerId": {
+          "type": "ObjectId"
+        },
+        "surveyId": {
+          "type": "ObjectId"
+        },
+        "surveyVersionId": {
+          "type": "ObjectId"
+        },
+        "questionId": {
+          "type": "String"
+        },
+        "libraryQuestionId": {
+          "type": "ObjectId"
+        },
+        "questionVersionId": {
+          "type": "ObjectId"
+        },
+        "status": {
+          "type": "String"
+        },
+        "_id": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "surveyVersionId": 1,
+            "questionId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "libraryQuestionId": 1,
+            "ownerId": 1,
+            "status": 1,
+            "surveyVersionId": 1,
+            "questionId": 1
+          }
+        },
+        {
+          "key": {
+            "questionVersionId": 1,
+            "ownerId": 1,
+            "status": 1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "surveyVersionId": 1,
+            "questionId": 1
+          },
+          "name": "surveyVersionId_1_questionId_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "libraryQuestionId": 1,
+            "ownerId": 1,
+            "status": 1,
+            "surveyVersionId": 1,
+            "questionId": 1
+          },
+          "name": "libraryQuestionId_1_ownerId_1_status_1_surveyVersionId_1_questionId_1"
+        },
+        {
+          "v": 2,
+          "key": {
+            "questionVersionId": 1,
+            "ownerId": 1,
+            "status": 1
+          },
+          "name": "questionVersionId_1_ownerId_1_status_1"
+        }
+      ]
+    },
+    {
+      "collection": "question_shares",
+      "documentCount": 0,
+      "fields": {
+        "libraryQuestionId": {
+          "type": "ObjectId"
+        },
+        "questionVersionId": {
+          "type": "ObjectId"
+        },
+        "recipientId": {
+          "type": "ObjectId"
+        },
+        "accessRevision": {
+          "type": "Number"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "_id": {
+          "type": "ObjectId"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "questionVersionId": 1,
+            "recipientId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "recipientId": 1,
+            "libraryQuestionId": 1
+          }
+        },
+        {
+          "key": {
+            "libraryQuestionId": 1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "questionVersionId": 1,
+            "recipientId": 1
+          },
+          "name": "questionVersionId_1_recipientId_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "recipientId": 1,
+            "libraryQuestionId": 1
+          },
+          "name": "recipientId_1_libraryQuestionId_1"
+        },
+        {
+          "v": 2,
+          "key": {
+            "libraryQuestionId": 1,
+            "_id": -1
+          },
+          "name": "libraryQuestionId_1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "question_banks",
+      "documentCount": 0,
+      "fields": {
+        "ownerId": {
+          "type": "ObjectId"
+        },
+        "name": {
+          "type": "String"
+        },
+        "revision": {
+          "type": "Number"
+        },
+        "membershipRevision": {
+          "type": "Number"
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "ownerId": 1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "ownerId": 1,
+            "_id": -1
+          },
+          "name": "ownerId_1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "question_bank_items",
+      "documentCount": 0,
+      "fields": {
+        "bankId": {
+          "type": "ObjectId"
+        },
+        "libraryQuestionId": {
+          "type": "ObjectId"
+        },
+        "versionPolicy": {
+          "type": "String"
+        },
+        "questionVersionId": {
+          "type": "ObjectId"
+        },
+        "revision": {
+          "type": "Number"
+        },
+        "_id": {
+          "type": "ObjectId"
+        },
+        "createdAt": {
+          "type": "Date"
+        },
+        "updatedAt": {
+          "type": "Date"
+        }
+      },
+      "declaredIndexes": [
+        {
+          "key": {
+            "bankId": 1,
+            "libraryQuestionId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "bankId": 1,
+            "_id": -1
+          }
+        }
+      ],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        },
+        {
+          "v": 2,
+          "key": {
+            "bankId": 1,
+            "libraryQuestionId": 1
+          },
+          "name": "bankId_1_libraryQuestionId_1",
+          "unique": true
+        },
+        {
+          "v": 2,
+          "key": {
+            "bankId": 1,
+            "_id": -1
+          },
+          "name": "bankId_1__id_-1"
+        }
+      ]
+    },
+    {
+      "collection": "stage2_demo_manifest",
+      "documentCount": 0,
+      "fields": {
+        "_id": {
+          "type": "String"
+        },
+        "userIds": {
+          "type": "Array"
+        },
+        "state": {
+          "type": "String"
+        }
+      },
+      "declaredIndexes": [],
+      "actualIndexes": [
+        {
+          "v": 2,
+          "key": {
+            "_id": 1
+          },
+          "name": "_id_"
+        }
+      ]
+    }
+  ]
+}

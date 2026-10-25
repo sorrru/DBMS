@@ -1,4 +1,7 @@
+import { createLibraryStatisticsRouter } from "./library-statistics/router.js";
+import { createBankRouter } from "./banks/router.js";
 import cors from "cors";
+import { createLibraryRouter } from "./library/router.js";
 import express, {
   type ErrorRequestHandler,
   type Express,
@@ -111,6 +114,9 @@ export function createApp(
   });
 
   app.use("/api/auth", createAuthRouter(authDependencies));
+  app.use("/api/question-banks", createBankRouter(authDependencies));
+  app.use("/api/questions", createLibraryStatisticsRouter(authDependencies));
+  app.use("/api/questions", createLibraryRouter(authDependencies));
   app.use("/api/public", createFillRouter(authDependencies, clock));
   app.use("/api/surveys", createStatisticsRouter(authDependencies, clock));
   app.use("/api/surveys", createSurveyRouter(authDependencies));

@@ -1,5 +1,7 @@
 # 第一阶段系统设计
 
+本文保留为第一阶段历史设计。第二阶段完整系统请读 [SYSTEM_DESIGN_STAGE2.md](SYSTEM_DESIGN_STAGE2.md)，当前全部集合和索引见 [DATABASE_DESIGN.md](DATABASE_DESIGN.md)。
+
 ## 设计结论
 
 系统采用 Vue 3 与 TypeScript 实现前端，Node.js 24 LTS、Express 5 与 TypeScript 实现后端，MongoDB 8.0 保存全部业务数据。数据层使用五个集合：`users`、`surveys`、`survey_versions`、`fill_sessions` 和 `responses`。

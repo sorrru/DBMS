@@ -400,3 +400,66 @@ export function changedDraftFields(
       .map((key) => [key, current[key]]),
   );
 }
+
+export interface LibrarySelection {
+  libraryQuestionId: string;
+  questionVersionId: string;
+  contentRevision: number;
+}
+export const addLibraryQuestion = (
+  surveyId: string,
+  versionId: string,
+  revision: number,
+  selection: LibrarySelection,
+) =>
+  apiRequest<{
+    version: SurveyVersion;
+    questionId: string;
+    surveyUpdatedAt: string;
+  }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/library-questions`,
+    jsonRequest("POST", { revision, ...selection }),
+  );
+export const changeLibraryQuestion = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+  selection: LibrarySelection,
+) =>
+  apiRequest<{
+    version: SurveyVersion;
+    questionId: string;
+    surveyUpdatedAt: string;
+  }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}/library-source`,
+    jsonRequest("PUT", { revision, ...selection }),
+  );
+export const detachLibraryQuestion = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+) =>
+  apiRequest<{ version: SurveyVersion; surveyUpdatedAt: string }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}/detach-library`,
+    jsonRequest("POST", { revision }),
+  );
+export const saveQuestionToLibrary = (
+  surveyId: string,
+  versionId: string,
+  questionId: string,
+  revision: number,
+) =>
+  apiRequest<{
+    version: SurveyVersion;
+    libraryQuestionId: string;
+    questionVersionId: string;
+    surveyUpdatedAt: string;
+  }>(
+    `/api/surveys/${surveyId}/versions/${versionId}/questions/${questionId}/save-to-library`,
+    jsonRequest("POST", { revision }),
+  );
+
+export const getSurvey = (id: string) =>
+  apiRequest<{ survey: SurveySummary }>(`/api/surveys/${id}`);

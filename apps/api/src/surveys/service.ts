@@ -22,6 +22,20 @@ import {
   type SurveyQuestion,
 } from "./questions.js";
 import { normalizeJumpRules, type RawJumpRule } from "./jumps.js";
+import {
+  LibraryQuestionModel,
+  LibraryVersionModel,
+  LibraryOptionKeyModel,
+} from "../models/library-question.js";
+import { readAccessibleLibraryVersion } from "../library/access.js";
+import { QuestionShareModel } from "../models/question-share.js";
+import { QuestionUsageModel } from "../models/question-usage.js";
+import {
+  freezeLibraryVersion,
+  createLibraryQuestionRecords,
+} from "../library/service.js";
+import { syncQuestionUsages, questionUsageRecords } from "../library/usages.js";
+import type { parseLibrarySelection } from "./library-validation.js";
 
 interface VersionSummary {
   id: string;
@@ -79,6 +93,9 @@ export interface SurveyLifecycleTestHooks {
   afterVersionPublished?: () => void | Promise<void>;
   afterSurveyPublished?: () => void | Promise<void>;
   afterVersionCreated?: () => void | Promise<void>;
+  afterQuestionUsagesChanged?: () => void | Promise<void>;
+  afterDraftUsagesRemoved?: () => void | Promise<void>;
+  afterLibraryAccess?: () => void | Promise<void>;
 }
 
 const versionSummary = (version?: LeanVersion): VersionSummary | null =>
@@ -122,7 +139,15 @@ export class SurveyService {
   ) {}
 
   async ensureIndexes(): Promise<void> {
-    await Promise.all([SurveyModel.init(), SurveyVersionModel.init()]);
+    await Promise.all([
+      SurveyModel.init(),
+      SurveyVersionModel.init(),
+      LibraryQuestionModel.init(),
+      LibraryVersionModel.init(),
+      LibraryOptionKeyModel.init(),
+      QuestionUsageModel.init(),
+      QuestionShareModel.init(),
+    ]);
   }
 
   async create(
@@ -363,6 +388,12 @@ export class SurveyService {
       questionId,
       (questions, index) => {
         const current = questions[index!];
+        if (current?.source)
+          throw new ApiError(
+            409,
+            "LIBRARY_SNAPSHOT_READ_ONLY",
+            "请先转为本地题目，或从常用题目显式换用其他版本",
+          );
         const retainedIds = new Set(
           input.options.flatMap((option) =>
             option.optionId ? [option.optionId] : [],
@@ -464,6 +495,163 @@ export class SurveyService {
         );
       },
     );
+  }
+
+  async addLibraryQuestion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    input: ReturnType<typeof parseLibrarySelection>,
+    replaceQuestionId?: string,
+  ) {
+    let questionId = "";
+    const result = await this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      input.revision,
+      replaceQuestionId,
+      async (questions, index, session) => {
+        const current = index === undefined ? undefined : questions[index];
+        if (current) {
+          if (
+            !current.source ||
+            current.source.libraryQuestionId !== input.libraryQuestionId
+          )
+            throw new ApiError(
+              400,
+              "VALIDATION_ERROR",
+              "换版本只能选择同一常用题目",
+              { path: "libraryQuestionId" },
+            );
+          if (current.source.questionVersionId === input.questionVersionId)
+            throw new ApiError(400, "VALIDATION_ERROR", "当前已使用所选版本", {
+              path: "questionVersionId",
+            });
+          const references = questions.flatMap((q) =>
+            q.jumpRules
+              .filter((r) => r.targetQuestionId === current.questionId)
+              .map((r) => ({ questionId: q.questionId, ruleId: r.ruleId })),
+          );
+          if (references.length)
+            throw new ApiError(
+              409,
+              "QUESTION_REFERENCED",
+              "先调整指向本题的跳转，再换用版本",
+              { references },
+            );
+          if (current.jumpRules.length)
+            throw new ApiError(
+              409,
+              "QUESTION_HAS_JUMP_RULES",
+              "先清空本题的跳转规则，再换用版本",
+            );
+        } else if (questions.length >= 100)
+          throw new ApiError(
+            409,
+            "QUESTION_LIMIT_REACHED",
+            "草稿已经达到 100 道题上限",
+          );
+        const source = await readAccessibleLibraryVersion(
+          ownerId,
+          input.libraryQuestionId,
+          input.questionVersionId,
+          session,
+        );
+        await this.testHooks.afterLibraryAccess?.();
+        await freezeLibraryVersion(
+          source,
+          input.contentRevision,
+          "adopted",
+          session,
+        );
+        const question = normalizeQuestion(
+          source.definition.type,
+          {
+            ...source.definition,
+            options: source.definition.options.map((o) => ({ text: o.text })),
+          },
+          undefined,
+          questions,
+        );
+        question.source = {
+          libraryQuestionId: input.libraryQuestionId,
+          questionVersionId: input.questionVersionId,
+          contentRevision: source.contentRevision,
+          versionNumber: source.versionNumber,
+          optionSources: question.options.map((o, i) => ({
+            optionId: o.optionId,
+            sourceOptionId: source.definition.options[i]!.optionId,
+          })),
+        };
+        questionId = question.questionId;
+        return current
+          ? questions.map((q, i) => (i === index ? question : q))
+          : [...questions, question];
+      },
+    );
+    return { ...result, questionId };
+  }
+
+  detachLibraryQuestion(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    questionId: string,
+    revision: number,
+  ) {
+    return this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      revision,
+      questionId,
+      (questions, index) => {
+        if (!questions[index!]!.source)
+          throw new ApiError(400, "VALIDATION_ERROR", "该题已是本地题目", {
+            path: "questionId",
+          });
+        return questions.map((q, i) => {
+          if (i !== index) return q;
+          const { source: _source, ...local } = q;
+          return local;
+        });
+      },
+    );
+  }
+
+  async saveQuestionToLibrary(
+    ownerId: Types.ObjectId,
+    surveyId: string,
+    versionId: string,
+    questionId: string,
+    revision: number,
+  ) {
+    let created:
+      { libraryQuestionId: string; questionVersionId: string } | undefined;
+    const result = await this.mutateQuestions(
+      ownerId,
+      surveyId,
+      versionId,
+      revision,
+      questionId,
+      async (questions, index, session) => {
+        const q = questions[index!]!;
+        if (q.source)
+          throw new ApiError(
+            409,
+            "LIBRARY_SNAPSHOT_READ_ONLY",
+            "该题已来自常用题目，可在常用题目管理中另存",
+          );
+        created = await createLibraryQuestionRecords(
+          ownerId,
+          { ...q, options: q.options.map((o) => ({ text: o.text })) },
+          session,
+        );
+        return questions;
+      },
+    );
+    return { ...result, ...created! };
   }
 
   async validateDraft(
@@ -571,6 +759,11 @@ export class SurveyService {
           .lean()
           .exec()) as LeanVersion | null;
         if (!published) throw new ConditionalUpdateFailed();
+        await QuestionUsageModel.updateMany(
+          { surveyVersionId: versionId },
+          { $set: { status: "published" } },
+          { session },
+        );
         await this.testHooks.afterVersionPublished?.();
         const surveyWrite = await SurveyModel.updateOne(
           { _id: surveyId, ownerId, draftVersionId: versionId },
@@ -656,6 +849,17 @@ export class SurveyService {
           ],
           { session },
         );
+        const copiedUsages = questionUsageRecords(
+          {
+            ownerId,
+            surveyId,
+            versionId: versionId.toString(),
+            status: "draft",
+          },
+          source.questions,
+        );
+        if (copiedUsages.length)
+          await QuestionUsageModel.insertMany(copiedUsages, { session });
         await this.testHooks.afterVersionCreated?.();
         const write = await SurveyModel.updateOne(
           {
@@ -745,6 +949,11 @@ export class SurveyService {
           { session },
         );
         if (removed.deletedCount !== 1) throw new ConditionalUpdateFailed();
+        await QuestionUsageModel.deleteMany(
+          { surveyVersionId: versionId },
+          { session },
+        );
+        await this.testHooks.afterDraftUsagesRemoved?.();
         const write = await SurveyModel.updateOne(
           { _id: surveyId, ownerId, draftVersionId: versionId },
           { $set: { draftVersionId: null, updatedAt: this.clock() } },
@@ -885,7 +1094,11 @@ export class SurveyService {
     versionId: string,
     revision: number,
     questionId: string | undefined,
-    mutation: (questions: SurveyQuestion[], index?: number) => SurveyQuestion[],
+    mutation: (
+      questions: SurveyQuestion[],
+      index: number | undefined,
+      session: ClientSession,
+    ) => SurveyQuestion[] | Promise<SurveyQuestion[]>,
   ): Promise<{ version: PublicVersion; surveyUpdatedAt: string }> {
     await this.ensureIndexes();
     const session = await mongoose.startSession();
@@ -917,11 +1130,24 @@ export class SurveyService {
           : undefined;
         if (questionId && index === -1)
           throw new ApiError(404, "QUESTION_NOT_FOUND", "题目不存在");
-        const next = mutation(questions, index);
+        const next = await mutation(questions, index, session);
+        await syncQuestionUsages(
+          { ownerId, surveyId, versionId, status: "draft" },
+          questions,
+          next,
+          session,
+        );
+        await this.testHooks.afterQuestionUsagesChanged?.();
         updated = (await SurveyVersionModel.findOneAndUpdate(
           { _id: versionId, surveyId, status: "draft", revision },
           {
-            $set: { questions: next, updatedAt: now },
+            $set: {
+              questions: next,
+              updatedAt: now,
+              schemaVersion: next.some((q) => q.source)
+                ? 2
+                : version.schemaVersion,
+            },
             $inc: { revision: 1 },
           },
           { returnDocument: "after", session, timestamps: false },

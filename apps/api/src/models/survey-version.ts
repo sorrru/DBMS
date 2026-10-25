@@ -54,6 +54,27 @@ const jumpRuleSchema = new Schema<JumpRule>(
   { _id: false, versionKey: false, minimize: false },
 );
 
+const sourceSchema = new Schema(
+  {
+    libraryQuestionId: { type: String, required: true, match: /^[a-f\d]{24}$/ },
+    questionVersionId: { type: String, required: true, match: /^[a-f\d]{24}$/ },
+    contentRevision: { type: Number, required: true },
+    versionNumber: { type: Number, required: true },
+    optionSources: {
+      type: [
+        new Schema(
+          {
+            optionId: { type: String, required: true },
+            sourceOptionId: { type: String, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      required: true,
+    },
+  },
+  { _id: false, versionKey: false },
+);
 const questionSchema = new Schema<SurveyQuestion>(
   {
     questionId: { type: String, required: true },
@@ -67,6 +88,7 @@ const questionSchema = new Schema<SurveyQuestion>(
     validation: { type: Schema.Types.Mixed, required: true },
     options: { type: [optionSchema], required: true, default: [] },
     jumpRules: { type: [jumpRuleSchema], required: true, default: [] },
+    source: { type: sourceSchema, default: undefined },
   },
   { _id: false, versionKey: false, minimize: false },
 );

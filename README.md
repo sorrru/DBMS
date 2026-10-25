@@ -1,6 +1,33 @@
 # 基于 MongoDB 的版本化问卷系统
 
-本仓库用于数据库系统大作业一。里程碑 1 至 12 已完成：功能、自动检查、人工验收、最终 Markdown 文档、GitHub 推送和全新克隆验证均已通过。
+本仓库保存数据库系统大作业一的两个阶段。第二阶段在第一阶段代码上增量扩展，`main` 为第二阶段完整系统；两个阶段通过固定标签及独立报告区分。
+
+## 两阶段提交导航
+
+| 阶段     | 固定代码版本                                                                            | 报告与材料                                                                                                                                                                                       | 验证       |
+| -------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| 第一阶段 | [stage1-final](https://github.com/sorrru/DBMS/tree/stage1-final)，对应 `90c2504`        | [阶段一报告](docs/PROJECT_REPORT.md)、[阶段一 Word](docs/PROJECT_REPORT.docx)、[阶段一清单](TODO.md)；该阶段设计以标签内文档为准                                                                 | 184 项测试 |
+| 第二阶段 | [stage2-final](https://github.com/sorrru/DBMS/tree/stage2-final)，也为本次交付的 `main` | [阶段二报告](docs/PROJECT_REPORT_STAGE2.md)、[Word](docs/PROJECT_REPORT_STAGE2.docx)、[PDF](docs/PROJECT_REPORT_STAGE2.pdf)、[提交索引](docs/SUBMISSION_STAGE2.md)、[阶段二清单](STAGE2_TODO.md) | 301 项测试 |
+
+查看第一阶段源码使用 `git switch --detach stage1-final`，查看第二阶段使用 `git switch --detach stage2-final`；操作前先保存工作区修改。两阶段共用原有目录结构，完整保留 Git 演进历史；不要把当前 `main` 的新增题库功能算入第一阶段。
+
+## 第二阶段当前进度
+
+里程碑 0–6 已通过人工检查；里程碑 7 的完整报告已按总要求精简，系统与数据库文档及交付索引齐全，用户已授权在原仓库统一提交。完整 301 项回归、类型检查、生产构建与格式检查通过。运行配置和启动命令沿用下文，无新增必填环境变量。
+
+登录后，在“我的问卷 → 管理常用题目与版本”管理独立题目；进入问卷草稿后，在题目区点击“从常用题目选入”。已保存的本地题可点“保存为常用题目”；带来源题可“换用版本”或“转为本地题目”。
+
+当前新增 `questions`、`question_versions`、`library_option_keys`、`question_usages` 和 `question_shares` 模型。已接入问卷选题及使用记录事务维护。题目管理中可切换“共享给我”；所有者在题目详情管理版本授权并查看引用，接收者也可从问卷选题器选用共享版本。新增 `question_banks` 和 `question_bank_items` 分类集合；进入“管理题库分类”可创建和管理分类，成员可固定版本或跟随最新可用版本，不影响已有问卷。常用题目详情、草稿来源题及已发布问卷来源题的“跨问卷统计”只汇总自己的已发布问卷，支持分版本及明确合并、选项归并、数字分桶和文本分页。统计默认折叠，题库分类不产生问卷统计来源。原五集合、问卷快照和历史回答保持兼容。
+
+检查材料：[需求](docs/STAGE2_REQUIREMENTS.md)、[增量设计](docs/STAGE2_DESIGN.md)、[D8 引用方案实验](docs/experiments/STAGE2_D8_COMPARISON.md)、[里程碑 1 检查记录](docs/experiments/STAGE2_MILESTONE1_TEST_REPORT.md)、[里程碑 2 检查记录](docs/experiments/STAGE2_MILESTONE2_TEST_REPORT.md)、[里程碑 3 测试与人工检查步骤](docs/experiments/STAGE2_MILESTONE3_TEST_REPORT.md)。
+
+里程碑 4 检查材料：[题库测试与人工步骤](docs/experiments/STAGE2_MILESTONE4_TEST_REPORT.md)。
+
+里程碑 5 检查材料：[统计测试与人工步骤](docs/experiments/STAGE2_MILESTONE5_TEST_REPORT.md)、[真实执行计划](docs/experiments/STAGE2_STATISTICS_EXPLAIN.json)。
+
+里程碑 6 检查材料：[完整回归与人工流程](docs/experiments/STAGE2_MILESTONE6_TEST_REPORT.md)、[需求测试矩阵](docs/experiments/STAGE2_REQUIREMENT_TEST_MATRIX.md)、[维护及独立演示说明](docs/STAGE2_OPERATIONS.md)。第二阶段演示用 `seed:stage2`，默认不重建；原种子账号含第二阶段数据时旧 seed 会拒绝清理。
+
+第二阶段当前主报告：[完整项目报告](docs/PROJECT_REPORT_STAGE2.md)。完整设计：[系统说明](docs/SYSTEM_DESIGN_STAGE2.md)、[数据库设计](docs/DATABASE_DESIGN.md)。[提交材料索引](docs/SUBMISSION_STAGE2.md)区分当前报告与第一阶段历史 Word；第一阶段历史材料通过 `stage1-final` 固定，第二阶段材料通过 `stage2-final` 固定。
 
 ## 当前技术版本
 
@@ -158,7 +185,7 @@ MongoDB 已连接时：
 
 题目、选项、校验和跳转规则嵌套在 `survey_versions` 中，使每个发布版本都能作为完整且不可变的快照读取。回答独立保存在 `responses` 中，避免问卷文档随提交数量无限增长，并支持并发提交、分页和 MongoDB 聚合统计。
 
-匿名模式不会在填写会话中保存 `userId`，也不会在正式回答中保存 `respondentId`；系统内部使用问卷内稳定的 `ownerKey` 判断会话所有权和重复填写。`fillSessionId` 是提交幂等性的唯一锚点，但填写会话会被 TTL 清理，因此该引用之后允许悬空，正式回答不会随会话删除。完整字段、索引和嵌套原因见 [系统设计](docs/SYSTEM_DESIGN.md)。
+匿名模式不会在填写会话中保存 `userId`，也不会在正式回答中保存 `respondentId`；系统内部使用问卷内稳定的 `ownerKey` 判断会话所有权和重复填写。`fillSessionId` 是提交幂等性的唯一锚点，但填写会话会被 TTL 清理，因此该引用之后允许悬空，正式回答不会随会话删除。完整字段、索引和嵌套原因见当前[数据库设计](docs/DATABASE_DESIGN.md)；原[第一阶段系统设计](docs/SYSTEM_DESIGN.md)保留作历史依据。
 
 ## 问卷版本生命周期
 
@@ -185,6 +212,8 @@ v1 保留历史回答和统计
 - `/api/auth/*`：注册、登录、读取当前用户和退出登录。
 - `/api/surveys/*`：问卷主体、版本草稿、题目、跳转规则、发布、状态与版本历史。
 - `/api/public/*`：公开摘要、填写会话的创建与恢复，以及正式提交。
+- `/api/questions/*`：常用题目、版本、共享、引用与自己的跨问卷单题统计。
+- `/api/question-banks/*`：私有分类、成员及版本策略。
 - `/statistics`、`/responses`、`/submissions`：按版本统计、文本回答分页和实名提交记录。
 
 所有请求字段、成功响应、鉴权要求、判定顺序和稳定错误码以 [API 说明](docs/API.md) 为准。
@@ -237,10 +266,12 @@ v1 保留历史回答和统计
 - 跳转 API 测试覆盖整组保存、规则 ID/选项归属、自跳转、引用保护、revision 并发，以及只读发布检查。
 - 里程碑 8 覆盖正式提交、先认证后解析、4 MiB 独立上限、路径重算、稳定回答错误、规范化存储、幂等重试、重复限制、事务回滚和并发竞争。
 - 里程碑 9 及后续补充覆盖五条聚合、快照一致性、手算指标、数字空值、匿名/实名文本分页、实名提交记录、加密游标、查询边界和内部字段泄露；数据库集成部分需要 Docker MongoDB 运行。
-- 当前自动测试总数为共享逻辑包 11 项、API 147 项、Web 26 项，共 184 项。
-- 种子脚本可在本地创建匿名/实名既有回答、允许/禁止重复、关闭、到期、旧版本会话、四种题型和有效分支的演示数据，并按受保护的清理顺序重复运行。
+- 当前自动测试总数为共享逻辑包 11 项、API 240 项、Web 50 项，共 301 项（2026-10-25 再次通过）；184 项为保留的第一阶段基线。
+- 第一阶段种子保留原演示场景，但账号已含第二阶段资料时拒绝清理；第二阶段独立演示请按维护说明使用 seed:stage2，默认重复运行只验证。
 
 ## 设计文档
+
+当前提交入口：[第二阶段完整报告](docs/PROJECT_REPORT_STAGE2.md)、[提交索引](docs/SUBMISSION_STAGE2.md)、[完整系统](docs/SYSTEM_DESIGN_STAGE2.md)、[完整数据库](docs/DATABASE_DESIGN.md)、[第二阶段事实底稿](docs/REPORT_FACT_CHECK_STAGE2.md)。下列第一阶段资料作为保留功能与历史依据。
 
 - [第一阶段项目报告（DOCX）](docs/PROJECT_REPORT.docx)
 - [第一阶段项目报告（Markdown 源稿）](docs/PROJECT_REPORT.md)
@@ -266,6 +297,6 @@ v1 保留历史回答和统计
 - [API 说明](docs/API.md)
 - [分阶段 TODO](TODO.md)
 
-## 当前边界
+## 第一阶段验收记录
 
-当前已实现创建者完整版本生命周期、公开填写与正式提交，以及严格按已发布版本隔离的统计、文本回答分页和实名提交记录。统计使用只读快照、查询超时、用户限流和 AES-256-GCM 不透明游标；创建者页面可手工刷新指标、按页查看文本回答，并在实名版本中核对每次提交的账号与时间。里程碑 1–10 均已完成自动检查和人工验收；里程碑 10 的追踪矩阵、P1–P5 补缺、种子幂等、执行计划、184 项最新完整回归和四组人工验收也已全部完成。里程碑 11 的最终 Markdown 文档经人工确认；里程碑 12 已完成 Git 与敏感信息检查、GitHub 推送，以及独立空卷环境中的全新克隆、184 项测试、构建和种子幂等验证。
+当前已实现创建者完整版本生命周期、公开填写与正式提交，以及严格按已发布版本隔离的统计、文本回答分页和实名提交记录。统计使用只读快照、查询超时、用户限流和 AES-256-GCM 不透明游标；创建者页面可手工刷新指标、按页查看文本回答，并在实名版本中核对每次提交的账号与时间。里程碑 1–10 均已完成自动检查和人工验收；里程碑 10 的追踪矩阵、P1–P5 补缺、种子幂等、执行计划、第一阶段 184 项完整回归和四组人工验收也已全部完成。里程碑 11 的最终 Markdown 文档经人工确认；里程碑 12 已完成 Git 与敏感信息检查、GitHub 推送，以及独立空卷环境中的全新克隆、184 项测试、构建和种子幂等验证。
